@@ -134,11 +134,11 @@ export function WeatherExplorer() {
         activeLayerLabel={activeLayerDefinition.shortLabelMn}
       />
 
-      <div className="synthetic-warning" role="note">
+      {/* <div className="synthetic-warning" role="note">
         <strong>DEMO</strong>
         <span>Зохиомол өгөгдөл — бодит цаг агаарын мэдээ биш</span>
         <span className="synthetic-warning__meta">Шинжлэх ухаанаар баталгаажаагүй</span>
-      </div>
+      </div> */}
 
       <div className="explorer-stage">
         <button
