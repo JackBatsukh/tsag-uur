@@ -1,36 +1,54 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Tsag-uur
 
-## Getting Started
+Монгол орны цаг агаарын загварын өгөгдлийг ойлгомжтой, ил тод байдлаар хүргэх weather intelligence платформын frontend суурь.
 
-First, run the development server:
+## Одоогийн төлөв
+
+Phase 1-ийн map-first weather explorer хэрэгжсэн:
+
+- Монголын MapLibre зураг болон OpenStreetMap суурь зураг;
+- температур, салхи, хур тунадас, чийгшил, даралтын ажиллагаатай Canvas давхаргууд;
+- U/V бүрэлдэхүүн дагасан салхины бөөмс;
+- цэг сонголт, хотын локал хайлт, 24 цагийн timeline;
+- бага дата зарцуулах Lite Mode;
+- responsive мэдээллийн самбар `/dashboard` замд.
+
+> **DEMO — Зохиомол өгөгдөл, бодит цаг агаарын мэдээ биш.** Одоогийн бүх утга deterministic UI жишээ бөгөөд бодит ажиглалт, урьдчилсан мэдээ, шинжлэх ухааны баталгаа эсвэл албан ёсны сэрэмжлүүлэг биш.
+
+## Шаардлага
+
+- Node.js 24
+- npm
+- WebGL2 дэмждэг browser (бүрэн зурагт горимд)
+
+## Локал хөгжүүлэлт
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Дараа нь [http://localhost:3000](http://localhost:3000)-ийг нээнэ. WebGL2 эсвэл тогтвортой сүлжээ байхгүй үед UI-н **Lite** товчоор зураглалгүй fallback горим ашиглаж болно.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Чухал замууд
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `/` — интерактив map-first explorer
+- `/dashboard` — мэдээллийн dashboard reference
 
-## Learn More
+## Шалгалтууд
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm run lint
+npm run typecheck
+npm run build
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Өгөгдөл ба зураглал
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+`src/features/weather-data` дахь typed provider нь одоогоор тогтвортой, зохиомол торон өгөгдөл үүсгэнэ. Ирээдүйн боловсруулсан WRF өгөгдлийн source мөн энэ contract-ыг хэрэгжүүлнэ; бүрэн NetCDF файлыг browser эсвэл энгийн web request дотор боловсруулахгүй.
 
-## Deploy on Vercel
+MapLibre зөвхөн бүрэн зурагт горим шаардсан үед dynamic import-оор ачаалагдана. Lite Mode нь MapLibre JavaScript болон гуравдагч талын tile request огт үүсгэхгүй.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Хөгжүүлэлтийн суурь зураг нь attribution бүхий OpenStreetMap Standard raster endpoint ашиглана. Энэ endpoint нь SLA-гүй, best-effort demo үйлчилгээ тул bulk/offline таталт, proxy, headless tile scraping хийхгүй. Олон хэрэглэгчтэй production орчинд Монголын OSM vector tile-ийг Planetiler/PMTiles зэрэг нээлттэй хэрэгслээр урьдчилан үүсгэж, их сургуулийн дэд бүтцэд өөрсдөө host хийхээр төлөвлөсөн.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Дэлгэрэнгүй шийдвэр, өгөгдлийн хязгаарлалт, дараагийн үе шатыг `PROJECT_ARCHITECTURE.md`, хөгжүүлэлтийн дүрмийг `AGENTS.md`-ээс харна уу.
