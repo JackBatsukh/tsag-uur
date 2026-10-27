@@ -84,6 +84,12 @@ export function WeatherMap({
         if (disposed || !hostRef.current || !overlayRef.current || !particlesRef.current) {
           return;
         }
+        maplibre.setWorkerUrl(
+          new URL(
+            "maplibre-gl/dist/maplibre-gl-worker.mjs",
+            import.meta.url,
+          ).toString(),
+        );
         const capabilityCanvas = document.createElement("canvas");
         if (!capabilityCanvas.getContext("webgl2")) {
           publishStatus({

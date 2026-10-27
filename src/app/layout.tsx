@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from "next";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./globals.css";
 import "../features/weather-explorer/explorer.css";
+import "../features/herder-mode/herder.css";
 
 export const metadata: Metadata = {
   title: {

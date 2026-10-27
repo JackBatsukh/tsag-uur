@@ -1,17 +1,18 @@
+import Link from "next/link";
+
 import { BrandMark } from "@/components/icons";
 
 const navigationItems = [
-  { href: "#overview", label: "Тойм" },
-  { href: "#hourly", label: "Цаг тутам" },
-  { href: "#model", label: "Загварын мэдээлэл" },
-  { href: "#transparency", label: "Ил тод байдал" },
+  { href: "/", label: "Цаг агаар" },
+  { href: "/herder", label: "Малчин" },
+  { href: "/dashboard", label: "Текстэн самбар" },
 ] as const;
 
 export function AppHeader() {
   return (
     <header className="site-header">
       <div className="site-header__inner page-shell">
-        <a className="brand" href="#top" aria-label="Tsag-uur нүүр хэсэг рүү очих">
+        <Link className="brand" href="/" aria-label="Tsag-uur нүүр хэсэг рүү очих">
           <span className="brand__mark">
             <BrandMark />
           </span>
@@ -19,13 +20,13 @@ export function AppHeader() {
             <span className="brand__name">Tsag-uur</span>
             <span className="brand__descriptor">Weather Intelligence</span>
           </span>
-        </a>
+        </Link>
 
         <nav className="primary-nav" aria-label="Үндсэн цэс">
           <ul className="primary-nav__list">
             {navigationItems.map((item) => (
               <li key={item.href}>
-                <a href={item.href}>{item.label}</a>
+                <Link href={item.href}>{item.label}</Link>
               </li>
             ))}
           </ul>

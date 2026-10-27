@@ -1,4 +1,4 @@
-import { WEATHER_CONDITION_CODE } from "./constants";
+import { WEATHER_CONDITION_CODE } from "./constants.ts";
 import type {
   WeatherBounds,
   WeatherCondition,
@@ -62,6 +62,24 @@ export function windDirectionFromComponents(
   // U is eastward and V is northward. Meteorological direction describes the
   // origin of the wind, clockwise from true north.
   return ((Math.atan2(-windUMps, -windVMps) * 180) / Math.PI + 360) % 360;
+}
+
+/** Convert meteorological "from" direction and speed to eastward/northward U/V. */
+export function windComponentsFromDirection(
+  directionDegrees: number,
+  speedMps: number,
+): Readonly<{ u: number; v: number }> {
+  if (!Number.isFinite(directionDegrees) || !Number.isFinite(speedMps)) {
+    throw new TypeError("Wind direction and speed must be finite numbers.");
+  }
+  if (speedMps < 0) {
+    throw new RangeError("Wind speed cannot be negative.");
+  }
+  const radians = (((directionDegrees % 360) + 360) % 360) * (Math.PI / 180);
+  return Object.freeze({
+    u: -speedMps * Math.sin(radians),
+    v: -speedMps * Math.cos(radians),
+  });
 }
 
 export function cardinalFromDegrees(

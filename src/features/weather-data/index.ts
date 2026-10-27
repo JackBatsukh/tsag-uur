@@ -15,6 +15,7 @@ export {
   getWeatherGridField,
   resolveWeatherCondition,
   sampleWeatherGrid,
+  windComponentsFromDirection,
   windDirectionFromComponents,
 } from "./interpolation";
 export {

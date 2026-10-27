@@ -1,6 +1,6 @@
 # PROJECT_ARCHITECTURE.md — Tsag-uur
 
-**Status:** Phase 1 map-first frontend foundation implemented with deterministic synthetic data. Real forecast ingestion and backend services are not implemented yet.
+**Status:** Phase 1 map-first frontend and Herder Mode MVP implemented with deterministic synthetic data. Real forecast ingestion and backend services are not implemented yet.
 **Budget:** $0 incremental software/service spend for initial development.
 **Audience:** Citizens, Mongolian herders, researchers.
 **Purpose:** Turn meteorological model outputs into understandable forecasts, explainable risk context, and scientific exploration.
@@ -77,6 +77,7 @@ tsag-uur/
     app/                 # Next.js routes, layouts, server components
     components/          # shared UI and weather presentation
     features/
+      herder-mode/       # local reports, demo 7+7 day series, heuristics, risk UI
       map/               # MapLibre adapter, base-map config, Canvas weather rendering
       weather-data/      # provider contract, interpolation, deterministic demo dataset
       weather-explorer/  # map-first UI, controls, timeline, Lite fallback
@@ -95,7 +96,27 @@ Do not create empty directories solely to match this target tree.
 3. Change forecast valid time -> deterministic layer, wind, and point values update together.
 4. Use Lite Mode -> no MapLibre JavaScript or base-map tile requests; text/grid fallback remains useful.
 5. Open `/dashboard` -> the Phase 1 information-dashboard reference.
-6. Citizen mode is active; Herder, Agriculture, and Researcher modes stay visibly unavailable until their workflows are implemented and validated.
+6. Citizen and Herder modes are active. Agriculture and Researcher modes remain unavailable. Herder Mode is a clearly labelled, non-operational DEMO until real data and field validation are complete.
+
+### 6.2 Herder Mode data flow
+
+```text
+Deterministic scenario (snow / dust / heavy rain)
+  -> strictly separated historical and forecast steps
+  -> local missing-livestock report (browser storage only)
+  -> U/V historical summary + user observations
+  -> explainable sector heuristics
+  -> MapLibre overlays or zero-map-JS Lite fallback
+```
+
+The modules separate `demo-scenarios`, report types, historical analysis/search heuristics, risk assessment, MapLibre presentation, and the client UI. Search sectors are editable illustrations, not animal tracks, probability surfaces, or safe travel routes. Species configuration changes the visualization extent but does not claim validated travel distance. See `HERDER_MODE_RESEARCH.md`.
+
+Future provider adapters should expose:
+
+- versioned historical observations and processed WRF products;
+- official alerts as a distinct, attributable data type;
+- optional DEM, hydrology, snow cover, vegetation and satellite layers;
+- consented user observations, kept separate from public map products.
 
 ### 6.1 Current weather-layer pipeline
 
@@ -168,3 +189,6 @@ All chosen core frameworks/libraries are free/open source. Running infrastructur
 - **ADR-005:** Keep map rendering behind a provider boundary; synthetic and future WRF sources must use the same typed UI contract.
 - **ADR-006:** Lite Mode must remain useful without loading MapLibre or requesting third-party tiles.
 - **ADR-007:** Public OpenStreetMap Standard tiles are a development/demo base map, not the production scaling strategy.
+- **ADR-008:** Missing-livestock reports remain local-only until an explicit, reviewed sharing design exists; sensitive coordinates must not enter analytics or logs.
+- **ADR-009:** Herder search guidance uses deterministic, explainable sectors with no probability claim. Wind is one factor and never an inferred livestock track.
+- **ADR-010:** Historical and forecast data are distinct domain periods and receive separate UI states. Synthetic scenarios carry persistent DEMO status and never masquerade as alerts.
