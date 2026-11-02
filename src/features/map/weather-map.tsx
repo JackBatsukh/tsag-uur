@@ -10,7 +10,7 @@ import type { WeatherGrid, WeatherLayerId } from "@/features/weather-data";
 
 import { createBasemapStyle } from "./basemap-config";
 import {
-  renderWeatherOverlay,
+  WeatherOverlayRenderer,
   WindParticleRenderer,
 } from "./canvas-weather-layer";
 import type {
@@ -38,6 +38,7 @@ export function WeatherMap({
   const particlesRef = useRef<HTMLCanvasElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const markerRef = useRef<MapLibreMarker | null>(null);
+  const overlayRendererRef = useRef<WeatherOverlayRenderer | null>(null);
   const windRendererRef = useRef<WindParticleRenderer | null>(null);
   const gridRef = useRef<WeatherGrid>(provider.getGrid(timeSelector));
   const activeLayerRef = useRef<WeatherLayerId>(activeLayer);
@@ -117,6 +118,10 @@ export function WeatherMap({
           attributionControl: { compact: true },
         });
         mapRef.current = map;
+        overlayRendererRef.current = new WeatherOverlayRenderer(
+          map,
+          overlayRef.current,
+        );
         map.touchZoomRotate.disableRotation();
         map.addControl(
           new maplibre.NavigationControl({
@@ -133,10 +138,8 @@ export function WeatherMap({
         const scheduleOverlay = () => {
           if (overlayFrame !== null) cancelAnimationFrame(overlayFrame);
           overlayFrame = requestAnimationFrame(() => {
-            if (overlayRef.current && mapRef.current) {
-              renderWeatherOverlay(
-                mapRef.current,
-                overlayRef.current,
+            if (mapRef.current) {
+              overlayRendererRef.current?.render(
                 gridRef.current,
                 activeLayerRef.current,
               );
@@ -169,6 +172,9 @@ export function WeatherMap({
         });
 
         map.on("move", scheduleOverlay);
+        map.on("moveend", () => {
+          windRendererRef.current?.refreshViewport();
+        });
         map.on("resize", () => {
           scheduleOverlay();
           windRendererRef.current?.resize();
@@ -223,6 +229,8 @@ export function WeatherMap({
       resizeObserver?.disconnect();
       windRendererRef.current?.dispose();
       windRendererRef.current = null;
+      overlayRendererRef.current?.dispose();
+      overlayRendererRef.current = null;
       markerRef.current?.remove();
       markerRef.current = null;
       mapRef.current?.remove();
@@ -233,9 +241,8 @@ export function WeatherMap({
   useEffect(() => {
     activeLayerRef.current = activeLayer;
     const map = mapRef.current;
-    const canvas = overlayRef.current;
-    if (map && canvas && map.loaded()) {
-      renderWeatherOverlay(map, canvas, gridRef.current, activeLayer);
+    if (map && map.loaded()) {
+      overlayRendererRef.current?.render(gridRef.current, activeLayer);
     }
   }, [activeLayer]);
 
@@ -245,9 +252,8 @@ export function WeatherMap({
       gridRef.current = grid;
       windRendererRef.current?.setGrid(grid);
       const map = mapRef.current;
-      const canvas = overlayRef.current;
-      if (map && canvas && map.loaded()) {
-        renderWeatherOverlay(map, canvas, grid, activeLayerRef.current);
+      if (map && map.loaded()) {
+        overlayRendererRef.current?.render(grid, activeLayerRef.current);
       }
     } catch (error) {
       queueMicrotask(() => {

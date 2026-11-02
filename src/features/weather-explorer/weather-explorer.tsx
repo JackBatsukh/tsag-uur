@@ -23,6 +23,7 @@ import { ExplorerHeader } from "./explorer-header";
 import { ExplorerSidebar } from "./explorer-sidebar";
 import { ForecastTimeline } from "./forecast-timeline";
 import { LiteMap } from "./lite-map";
+import { MobileBottomNav } from "./mobile-bottom-nav";
 import { WeatherPointPanel } from "./weather-point-panel";
 
 const LITE_MODE_STORAGE_KEY = "tsag-uur-lite-mode";
@@ -54,6 +55,7 @@ export function WeatherExplorer() {
     useState<WeatherCoordinates>(DEFAULT_DEMO_LOCATION.coordinates);
   const [isPlaying, setIsPlaying] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [pointPanelOpen, setPointPanelOpen] = useState(true);
   const liteMode = useSyncExternalStore(
     subscribeToLiteMode,
     getLiteModeSnapshot,
@@ -107,6 +109,7 @@ export function WeatherExplorer() {
   const handleCoordinateSelection = useCallback(
     (coordinates: WeatherCoordinates) => {
       setSelectedCoordinates(coordinates);
+      setPointPanelOpen(true);
     },
     [],
   );
@@ -130,8 +133,6 @@ export function WeatherExplorer() {
 
       <ExplorerHeader
         onSelectCoordinates={handleCoordinateSelection}
-        onRequestMenu={() => setSidebarOpen((current) => !current)}
-        activeLayerLabel={activeLayerDefinition.shortLabelMn}
       />
 
       {/* <div className="synthetic-warning" role="note">
@@ -158,6 +159,7 @@ export function WeatherExplorer() {
           onLiteModeChange={updateLiteMode}
           showWindParticles={showWindParticles}
           onWindParticlesChange={setShowWindParticles}
+          
         />
 
         <div className="map-stage">
@@ -187,7 +189,12 @@ export function WeatherExplorer() {
             />
           )}
 
-          <div className={`weather-effect weather-effect--${selectedSample?.condition ?? "clear"}`} aria-hidden="true" />
+          {liteMode ? (
+            <div
+              className={`weather-effect weather-effect--${selectedSample?.condition ?? "clear"}`}
+              aria-hidden="true"
+            />
+          ) : null}
 
           <div className="map-toolbar" aria-label="Газрын зургийн төлөв">
             <span className="map-toolbar__layer">
@@ -218,6 +225,8 @@ export function WeatherExplorer() {
               timeStep={timeStep}
               metadata={provider.metadata}
               activeLayer={activeLayerDefinition}
+              expanded={pointPanelOpen}
+              onExpandedChange={setPointPanelOpen}
             />
           </div>
 
@@ -230,6 +239,15 @@ export function WeatherExplorer() {
               setIsPlaying(false);
             }}
             onPlayingChange={setIsPlaying}
+          />
+
+          <MobileBottomNav
+            sidebarOpen={sidebarOpen}
+            pointPanelOpen={pointPanelOpen}
+            liteMode={resolvedLiteMode}
+            onLayersToggle={() => setSidebarOpen((current) => !current)}
+            onPointPanelToggle={() => setPointPanelOpen((current) => !current)}
+            onLiteModeToggle={() => updateLiteMode(!resolvedLiteMode)}
           />
 
           <p className="map-screenreader-status" aria-live="polite">

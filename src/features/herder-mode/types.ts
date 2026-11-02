@@ -1,102 +1,64 @@
-import type { WeatherCoordinates } from "@/features/weather-data";
+export type PasturePriority = "wind" | "precipitation" | "cold";
+export type PastureDirectionId = "north" | "east" | "south" | "west";
 
-export type AnimalSpecies =
-  | "sheep"
-  | "goat"
-  | "horse"
-  | "cattle"
-  | "yak"
-  | "camel";
+export interface HerderCoordinates {
+  readonly latitude: number;
+  readonly longitude: number;
+}
 
-export type TerrainContext = "steppe" | "mountain" | "forest-steppe" | "gobi";
-export type WeatherPeriod = "historical" | "forecast";
-export type DemoScenarioKind = "snowstorm" | "dust-storm" | "heavy-rain";
-export type VisibilityConcern = "none" | "snow" | "dust" | "rain";
-
-export interface HerderWeatherStep {
-  readonly id: string;
-  readonly validTime: string;
-  readonly period: WeatherPeriod;
+export interface HerderCurrentWeather {
+  readonly time: string;
   readonly temperatureC: number;
-  readonly windUMps: number;
-  readonly windVMps: number;
+  readonly apparentTemperatureC: number;
+  readonly precipitationMm: number;
+  readonly weatherCode: number;
   readonly windSpeedMps: number;
   readonly windDirectionDegrees: number;
-  readonly precipitationMm: number;
-  readonly precipitationType: "none" | "rain" | "snow";
-  readonly visibilityConcern: VisibilityConcern;
+  readonly windGustMps: number;
 }
 
-export interface HerderDemoScenario {
-  readonly id: string;
-  readonly nameMn: string;
-  readonly summaryMn: string;
-  readonly kind: DemoScenarioKind;
-  readonly defaultSpecies: AnimalSpecies;
-  readonly defaultCount: number;
-  readonly terrain: TerrainContext;
-  readonly location: WeatherCoordinates;
-  readonly lastSeenTime: string;
-  readonly weather: readonly HerderWeatherStep[];
+export interface HerderHourlyWeather extends HerderCurrentWeather {
+  readonly precipitationProbabilityPercent: number;
+  readonly snowfallCm: number;
+  readonly visibilityM: number;
 }
 
-export interface MissingLivestockReport {
-  readonly species: AnimalSpecies;
-  readonly count: number;
-  readonly lastKnownLocation: WeatherCoordinates | null;
-  readonly lastSeenTime: string;
-  readonly observedDirectionDegrees: number | null;
-  readonly possibleDirectionDegrees: number | null;
-  readonly terrain: TerrainContext;
-  readonly shelterContext: string;
-  readonly notes: string;
-}
-
-export interface SpeciesSearchConfiguration {
-  readonly species: AnimalSpecies;
+export interface PastureDirectionSummary {
+  readonly id: PastureDirectionId;
   readonly labelMn: string;
-  /** Illustrative search extent, not an animal travel-distance claim. */
-  readonly baseInspectionKm: number;
-  readonly inspectionNoteMn: string;
-}
-
-export interface HistoricalWeatherAnalysis {
-  readonly stepsConsidered: number;
-  readonly startTime: string | null;
-  readonly endTime: string | null;
-  readonly strongestWindMps: number | null;
-  readonly strongestWindTime: string | null;
-  readonly totalPrecipitationMm: number | null;
-  readonly meanWindFlowDirectionDegrees: number | null;
-  readonly eventNotesMn: readonly string[];
-  readonly missingInputsMn: readonly string[];
-}
-
-export type SearchAreaKind = "observation" | "weather" | "alternative";
-
-export interface SearchAreaSuggestion {
-  readonly id: string;
-  readonly kind: SearchAreaKind;
-  readonly titleMn: string;
-  readonly color: string;
   readonly bearingDegrees: number;
+  readonly coordinates: HerderCoordinates;
   readonly distanceKm: number;
-  readonly polygon: readonly [number, number][];
-  readonly reasonsMn: readonly string[];
+  readonly precipitationTotalMm: number;
+  readonly precipitationProbabilityMaxPercent: number;
+  readonly maxWindGustMps: number;
+  readonly minApparentTemperatureC: number;
+  readonly maxTemperatureC: number;
+  readonly minVisibilityM: number;
+  readonly weatherCode: number;
+}
+
+export interface HerderForecastPayload {
+  readonly fetchedAt: string;
+  readonly timezone: string;
+  readonly timezoneAbbreviation: string;
+  readonly elevationM: number;
+  readonly location: HerderCoordinates;
+  readonly current: HerderCurrentWeather;
+  readonly hourly: readonly HerderHourlyWeather[];
+  readonly directions: readonly PastureDirectionSummary[];
+  readonly source: {
+    readonly name: string;
+    readonly url: string;
+    readonly model: string;
+  };
   readonly limitationsMn: readonly string[];
 }
 
-export interface SearchAdjustment {
-  readonly distanceMultiplier: number;
-  readonly bearingShiftDegrees: number;
-}
-
-export type RiskLevel = "info" | "watch" | "high" | "unavailable";
-
-export interface WeatherRiskItem {
-  readonly id: string;
-  readonly labelMn: string;
-  readonly level: RiskLevel;
-  readonly rawValueMn: string;
-  readonly explanationMn: string;
+export interface MissingLivestockDraft {
+  readonly species: string;
+  readonly count: string;
+  readonly lastSeenTime: string;
+  readonly lastSeenPlace: string;
+  readonly directionNote: string;
 }

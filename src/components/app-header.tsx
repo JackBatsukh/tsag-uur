@@ -5,6 +5,7 @@ import { BrandMark } from "@/components/icons";
 const navigationItems = [
   { href: "/", label: "Цаг агаар" },
   { href: "/herder", label: "Малчин" },
+  { href: "/farmer", label: "Тариаланч" },
   { href: "/dashboard", label: "Текстэн самбар" },
 ] as const;
 

@@ -10,7 +10,7 @@ import type {
 } from "@/features/weather-data";
 
 import { locationNameForCoordinates } from "./explorer-config";
-import { InfoCircleIcon, MapPinIcon } from "./explorer-icons";
+import { ChevronIcon, InfoCircleIcon, MapPinIcon } from "./explorer-icons";
 
 const oneDecimal = new Intl.NumberFormat("mn-MN", {
   maximumFractionDigits: 1,
@@ -22,6 +22,8 @@ interface WeatherPointPanelProps {
   readonly timeStep: WeatherTimeStep;
   readonly metadata: WeatherMetadata;
   readonly activeLayer: WeatherLayerDefinition;
+  readonly expanded: boolean;
+  readonly onExpandedChange: (expanded: boolean) => void;
 }
 
 export function WeatherPointPanel({
@@ -29,6 +31,8 @@ export function WeatherPointPanel({
   timeStep,
   metadata,
   activeLayer,
+  expanded,
+  onExpandedChange,
 }: WeatherPointPanelProps) {
   if (!sample) {
     return (
@@ -45,7 +49,7 @@ export function WeatherPointPanel({
   const conditionLabel = WEATHER_CONDITION_LABELS_MN[sample.condition];
 
   return (
-    <section className="point-panel" aria-labelledby="point-panel-title" aria-live="polite">
+    <section className="point-panel" data-expanded={expanded} aria-labelledby="point-panel-title" aria-live="polite">
       <div className="point-panel__heading">
         <div className="point-panel__location">
           <MapPinIcon />
@@ -56,9 +60,22 @@ export function WeatherPointPanel({
             </h2>
           </div>
         </div>
-        <span className="synthetic-pill">Synthetic</span>
+        <div className="point-panel__actions">
+          <span className="synthetic-pill">Synthetic</span>
+          <button
+            type="button"
+            className="point-panel__collapse"
+            aria-expanded={expanded}
+            aria-controls="selected-weather-content"
+            aria-label={expanded ? "Сонгосон цэгийн мэдээллийг хураах" : "Сонгосон цэгийн мэдээллийг нээх"}
+            onClick={() => onExpandedChange(!expanded)}
+          >
+            <ChevronIcon />
+          </button>
+        </div>
       </div>
 
+      <div id="selected-weather-content" className="point-panel__content" hidden={!expanded}>
       <div className="point-panel__primary">
         <div>
           <strong>{oneDecimal.format(sample.temperatureC)}°</strong>
@@ -120,6 +137,7 @@ export function WeatherPointPanel({
           </div>
         </dl>
       </details>
+      </div>
     </section>
   );
 }

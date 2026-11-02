@@ -3,9 +3,9 @@ import type {
   WeatherSample,
 } from "@/features/weather-data";
 
-type Rgba = readonly [red: number, green: number, blue: number, alpha: number];
+export type Rgba = readonly [red: number, green: number, blue: number, alpha: number];
 
-interface NumericColorStop {
+export interface NumericColorStop {
   readonly value: number;
   readonly color: Rgba;
 }
@@ -105,6 +105,12 @@ const COLOR_SCALES: Readonly<Record<WeatherLayerId, readonly NumericColorStop[]>
     { value: 1045, color: [220, 128, 91, 0.52] },
   ],
 };
+
+export function colorScaleForWeatherLayer(
+  layer: WeatherLayerId,
+): readonly NumericColorStop[] {
+  return COLOR_SCALES[layer];
+}
 
 function interpolate(start: number, end: number, amount: number): number {
   return start + (end - start) * amount;

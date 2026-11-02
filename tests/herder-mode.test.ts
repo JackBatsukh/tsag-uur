@@ -2,23 +2,36 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  chooseDirection,
+  directionalCoordinates,
+  isSevereWeatherCode,
+  largestSixHourTemperatureDrop,
+  summarizeDirection,
+  weatherCodeLabelMn,
+} from "../src/features/herder-mode/forecast-utils.ts";
+import type { HerderHourlyWeather, PastureDirectionSummary } from "../src/features/herder-mode/types.ts";
+import {
   cardinalFromDegrees,
   windComponentsFromDirection,
   windDirectionFromComponents,
 } from "../src/features/weather-data/interpolation.ts";
-import { SPECIES_CONFIG } from "../src/features/herder-mode/config.ts";
-import {
-  DEMO_REFERENCE_TIME,
-  HERDER_DEMO_SCENARIOS,
-  getDemoScenario,
-  splitWeatherPeriods,
-} from "../src/features/herder-mode/demo-scenarios.ts";
-import { assessWeatherRisks } from "../src/features/herder-mode/risk-assessment.ts";
-import {
-  analyzeHistoricalWeather,
-  buildSearchAreas,
-} from "../src/features/herder-mode/search-heuristics.ts";
-import type { MissingLivestockReport } from "../src/features/herder-mode/types.ts";
+
+function hour(index: number, overrides: Partial<HerderHourlyWeather> = {}): HerderHourlyWeather {
+  return {
+    time: new Date(Date.UTC(2026, 10, 2, index)).toISOString(),
+    temperatureC: 5 - index,
+    apparentTemperatureC: 3 - index,
+    precipitationProbabilityPercent: index * 5,
+    precipitationMm: index === 3 ? 2 : 0,
+    snowfallCm: 0,
+    weatherCode: 1,
+    windSpeedMps: 3,
+    windDirectionDegrees: 270,
+    windGustMps: 5 + index,
+    visibilityM: 20_000,
+    ...overrides,
+  };
+}
 
 test("meteorological direction converts to and from U/V components", () => {
   const westWind = windComponentsFromDirection(270, 10);
@@ -28,76 +41,50 @@ test("meteorological direction converts to and from U/V components", () => {
   assert.equal(cardinalFromDegrees(270), "W");
 });
 
-test("historical and forecast steps are strictly separated around reference time", () => {
-  for (const scenario of HERDER_DEMO_SCENARIOS) {
-    const periods = splitWeatherPeriods(scenario.weather);
-    assert.ok(periods.historical.length > 0);
-    assert.ok(periods.forecast.length > 0);
-    assert.ok(periods.historical.every((step) => step.period === "historical"));
-    assert.ok(periods.forecast.every((step) => step.period === "forecast"));
-    assert.ok(periods.historical.every((step) => Date.parse(step.validTime) < Date.parse(DEMO_REFERENCE_TIME)));
-    assert.ok(periods.forecast.every((step) => Date.parse(step.validTime) >= Date.parse(DEMO_REFERENCE_TIME)));
-  }
+test("direction points are placed north, east, south, and west", () => {
+  const origin = { latitude: 47.9, longitude: 106.9 };
+  const [north, east, south, west] = directionalCoordinates(origin, 12);
+  assert.ok(north!.latitude > origin.latitude);
+  assert.ok(east!.longitude > origin.longitude);
+  assert.ok(south!.latitude < origin.latitude);
+  assert.ok(west!.longitude < origin.longitude);
 });
 
-test("demo scenarios are deterministic and include all required event examples", () => {
-  const first = JSON.stringify(HERDER_DEMO_SCENARIOS);
-  const second = JSON.stringify(HERDER_DEMO_SCENARIOS.map((scenario) => getDemoScenario(scenario.id)));
-  assert.equal(first, second);
-  assert.deepEqual(
-    new Set(HERDER_DEMO_SCENARIOS.map((scenario) => scenario.kind)),
-    new Set(["snowstorm", "dust-storm", "heavy-rain"]),
+test("direction summary exposes raw comparable weather without a fabricated probability score", () => {
+  const summary = summarizeDirection(
+    "north",
+    { latitude: 48, longitude: 106.9 },
+    [hour(0), hour(1), hour(2, { weatherCode: 75, precipitationMm: 4 })],
   );
+  assert.equal(summary.labelMn, "Хойд");
+  assert.equal(summary.precipitationTotalMm, 4);
+  assert.equal(summary.weatherCode, 75);
+  assert.equal(JSON.stringify(summary).includes("score"), false);
 });
 
-test("species configuration covers six supported livestock types", () => {
-  assert.deepEqual(
-    Object.keys(SPECIES_CONFIG).sort(),
-    ["camel", "cattle", "goat", "horse", "sheep", "yak"],
-  );
-  assert.ok(Object.values(SPECIES_CONFIG).every((item) => item.baseInspectionKm > 0));
-});
-
-test("search areas are deterministic, explainable, and contain no probability output", () => {
-  const scenario = HERDER_DEMO_SCENARIOS[0]!;
-  const report: MissingLivestockReport = {
-    species: scenario.defaultSpecies,
-    count: scenario.defaultCount,
-    lastKnownLocation: scenario.location,
-    lastSeenTime: scenario.lastSeenTime,
-    observedDirectionDegrees: 80,
-    possibleDirectionDegrees: 120,
-    terrain: scenario.terrain,
-    shelterContext: "Малчны тэмдэглэл",
-    notes: "",
+test("pasture direction selection follows the herder-selected single priority", () => {
+  const base: Omit<PastureDirectionSummary, "id" | "labelMn" | "maxWindGustMps" | "precipitationTotalMm" | "minApparentTemperatureC"> = {
+    bearingDegrees: 0,
+    coordinates: { latitude: 47, longitude: 106 },
+    distanceKm: 12,
+    precipitationProbabilityMaxPercent: 20,
+    maxTemperatureC: 4,
+    minVisibilityM: 10_000,
+    weatherCode: 1,
   };
-  const analysis = analyzeHistoricalWeather(scenario.weather, report.lastSeenTime);
-  const first = buildSearchAreas(report, analysis, { distanceMultiplier: 1, bearingShiftDegrees: 0 });
-  const second = buildSearchAreas(report, analysis, { distanceMultiplier: 1, bearingShiftDegrees: 0 });
-  assert.equal(JSON.stringify(first), JSON.stringify(second));
-  assert.equal(first.length, 3);
-  const text = JSON.stringify(first).toLowerCase();
-  assert.equal(text.includes("%"), false);
-  assert.equal(text.includes("магадлалтай"), false);
-  assert.ok(first.every((area) => area.reasonsMn.length > 0 && area.limitationsMn.length > 0));
+  const directions: PastureDirectionSummary[] = [
+    { ...base, id: "north", labelMn: "Хойд", maxWindGustMps: 3, precipitationTotalMm: 6, minApparentTemperatureC: -12 },
+    { ...base, id: "south", labelMn: "Өмнөд", maxWindGustMps: 8, precipitationTotalMm: 0, minApparentTemperatureC: -2 },
+  ];
+  assert.equal(chooseDirection(directions, "wind")?.id, "north");
+  assert.equal(chooseDirection(directions, "precipitation")?.id, "south");
+  assert.equal(chooseDirection(directions, "cold")?.id, "south");
 });
 
-test("missing locations and invalid dates fail safely", () => {
-  const scenario = HERDER_DEMO_SCENARIOS[0]!;
-  const analysis = analyzeHistoricalWeather(scenario.weather, "not-a-date");
-  assert.equal(analysis.stepsConsidered, 0);
-  assert.ok(analysis.missingInputsMn.length > 0);
-  const report: MissingLivestockReport = {
-    species: "sheep",
-    count: 1,
-    lastKnownLocation: null,
-    lastSeenTime: "not-a-date",
-    observedDirectionDegrees: null,
-    possibleDirectionDegrees: null,
-    terrain: "steppe",
-    shelterContext: "",
-    notes: "",
-  };
-  assert.deepEqual(buildSearchAreas(report, analysis, { distanceMultiplier: 1, bearingShiftDegrees: 0 }), []);
-  assert.equal(assessWeatherRisks(null)[0]?.level, "unavailable");
+test("WMO severe codes and six-hour temperature change are surfaced", () => {
+  assert.equal(isSevereWeatherCode(75), true);
+  assert.equal(isSevereWeatherCode(3), false);
+  assert.equal(weatherCodeLabelMn(95), "Аянгатай");
+  const drop = largestSixHourTemperatureDrop(Array.from({ length: 8 }, (_, index) => hour(index)));
+  assert.equal(drop?.amountC, 6);
 });

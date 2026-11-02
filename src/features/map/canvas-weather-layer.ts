@@ -6,10 +6,18 @@ import type {
   WeatherLayerId,
 } from "@/features/weather-data";
 
-import { colorForWeatherSample } from "./color-scales";
+import {
+  colorForWeatherSample,
+  colorScaleForWeatherLayer,
+} from "./color-scales";
+import type {
+  WeatherOverlayRequest,
+  WeatherOverlayResponse,
+} from "./weather-overlay-protocol";
 
 const OVERLAY_SAMPLE_SIZE = 7;
-const SIMULATION_SECONDS_PER_REAL_SECOND = 42_000;
+const SIMULATION_SECONDS_PER_REAL_SECOND = 24_000;
+const INITIAL_PARTICLE_ZOOM = 4.1;
 
 function fitCanvas(canvas: HTMLCanvasElement, pixelRatio = 1): void {
   const width = Math.max(1, Math.round(canvas.clientWidth * pixelRatio));
@@ -71,11 +79,176 @@ export function renderWeatherOverlay(
   context.drawImage(buffer, 0, 0, canvas.width, canvas.height);
 }
 
+function valuesForLayer(
+  grid: WeatherGrid,
+  layer: WeatherLayerId,
+): Float32Array {
+  switch (layer) {
+    case "temperature":
+      return grid.fields.temperatureC;
+    case "wind-speed":
+      return grid.fields.windSpeedMps;
+    case "precipitation":
+      return grid.fields.hourlyPrecipitationMm;
+    case "humidity":
+      return grid.fields.relativeHumidityPercent;
+    case "pressure":
+      return grid.fields.pressureHpa;
+  }
+}
+
+function flattenedColorScale(layer: WeatherLayerId): Float32Array {
+  const stops = colorScaleForWeatherLayer(layer);
+  const flattened = new Float32Array(stops.length * 5);
+  stops.forEach((stop, index) => {
+    const offset = index * 5;
+    flattened[offset] = stop.value;
+    flattened[offset + 1] = stop.color[0];
+    flattened[offset + 2] = stop.color[1];
+    flattened[offset + 3] = stop.color[2];
+    flattened[offset + 4] = stop.color[3];
+  });
+  return flattened;
+}
+
+/**
+ * Canvas raster coordinator. Geographic projection remains on the MapLibre
+ * thread; grid interpolation and colour work run in a Web Worker backed by a
+ * tiny WebAssembly lerp kernel. The synchronous renderer is the compatibility
+ * fallback when module workers are unavailable.
+ */
+export class WeatherOverlayRenderer {
+  readonly #map: MapLibreMap;
+  readonly #canvas: HTMLCanvasElement;
+  readonly #buffer = document.createElement("canvas");
+  #worker: Worker | null = null;
+  #requestId = 0;
+  #disposed = false;
+
+  constructor(map: MapLibreMap, canvas: HTMLCanvasElement) {
+    this.#map = map;
+    this.#canvas = canvas;
+    try {
+      this.#worker = new Worker(
+        new URL("./weather-overlay.worker.ts", import.meta.url),
+        { type: "module", name: "weather-overlay" },
+      );
+      this.#worker.addEventListener("message", this.#handleMessage);
+      this.#worker.addEventListener("error", this.#handleWorkerError);
+    } catch {
+      this.#worker = null;
+    }
+  }
+
+  render(grid: WeatherGrid, layer: WeatherLayerId): void {
+    if (this.#disposed) return;
+    if (!this.#worker) {
+      renderWeatherOverlay(this.#map, this.#canvas, grid, layer);
+      return;
+    }
+
+    fitCanvas(this.#canvas);
+    const width = Math.max(
+      1,
+      Math.ceil(this.#canvas.clientWidth / OVERLAY_SAMPLE_SIZE),
+    );
+    const height = Math.max(
+      1,
+      Math.ceil(this.#canvas.clientHeight / OVERLAY_SAMPLE_SIZE),
+    );
+    const coordinates = new Float32Array(width * height * 2);
+
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        const point = this.#map.unproject([
+          (x + 0.5) * OVERLAY_SAMPLE_SIZE,
+          (y + 0.5) * OVERLAY_SAMPLE_SIZE,
+        ]);
+        const offset = (y * width + x) * 2;
+        coordinates[offset] = point.lng;
+        coordinates[offset + 1] = point.lat;
+      }
+    }
+
+    const values = valuesForLayer(grid, layer).slice();
+    const colorScale = flattenedColorScale(layer);
+    const request: WeatherOverlayRequest = {
+      requestId: ++this.#requestId,
+      width,
+      height,
+      layer,
+      columns: grid.columns,
+      rows: grid.rows,
+      west: grid.bounds.west,
+      south: grid.bounds.south,
+      east: grid.bounds.east,
+      north: grid.bounds.north,
+      longitudeStep: grid.longitudeStep,
+      latitudeStep: grid.latitudeStep,
+      coordinates,
+      values,
+      colorScale,
+    };
+    this.#worker.postMessage(request, [
+      coordinates.buffer,
+      values.buffer,
+      colorScale.buffer,
+    ]);
+  }
+
+  dispose(): void {
+    this.#disposed = true;
+    this.#worker?.removeEventListener("message", this.#handleMessage);
+    this.#worker?.removeEventListener("error", this.#handleWorkerError);
+    this.#worker?.terminate();
+    this.#worker = null;
+  }
+
+  readonly #handleMessage = (event: MessageEvent<WeatherOverlayResponse>) => {
+    const response = event.data;
+    if (this.#disposed || response.requestId !== this.#requestId) return;
+    const context = this.#canvas.getContext("2d", { alpha: true });
+    const bufferContext = this.#buffer.getContext("2d", { alpha: true });
+    if (!context || !bufferContext) return;
+
+    this.#buffer.width = response.width;
+    this.#buffer.height = response.height;
+    bufferContext.putImageData(
+      new ImageData(
+        new Uint8ClampedArray(response.pixels),
+        response.width,
+        response.height,
+      ),
+      0,
+      0,
+    );
+    context.clearRect(0, 0, this.#canvas.width, this.#canvas.height);
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = "high";
+    context.drawImage(
+      this.#buffer,
+      0,
+      0,
+      this.#canvas.width,
+      this.#canvas.height,
+    );
+  };
+
+  readonly #handleWorkerError = () => {
+    this.#worker?.terminate();
+    this.#worker = null;
+  };
+}
+
 interface Particle {
   longitude: number;
   latitude: number;
   age: number;
+  maxAge: number;
   generation: number;
+  role: "airflow" | "weather";
+  phase: number;
+  size: number;
 }
 
 function fractional(value: number): number {
@@ -91,45 +264,95 @@ function particleBudget(map: MapLibreMap): number {
   const area = container.clientWidth * container.clientHeight;
   const cores = navigator.hardwareConcurrency || 4;
   const memory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 4;
-  const quality = cores <= 4 || memory <= 4 ? 0.58 : 1;
-  return Math.max(110, Math.min(720, Math.round((area / 1_900) * quality)));
+  const quality = cores <= 4 || memory <= 4 ? 0.62 : 1;
+  // Keep screen-space density calm as users zoom into a smaller geographic
+  // area. The old fixed budget made local views look like a wall of wind.
+  const zoomScale = 1 / Math.pow(1.28, Math.max(0, map.getZoom() - 4));
+  return Math.max(
+    30,
+    Math.min(220, Math.round((area / 4_800) * quality * zoomScale)),
+  );
+}
+
+function weatherIntensity(sample: ReturnType<typeof sampleWeatherGrid>): number {
+  if (!sample) return 0;
+  if (sample.condition === "dusty") {
+    return Math.min(1, 0.28 + sample.windSpeedMps / 18);
+  }
+  if (sample.condition !== "rain" && sample.condition !== "snow") return 0;
+  return Math.min(1, 0.22 + sample.hourlyPrecipitationMm / 2.8);
 }
 
 function resetParticle(
   particle: Particle,
   index: number,
   map: MapLibreMap,
+  grid: WeatherGrid,
 ): void {
   particle.generation += 1;
   const bounds = map.getBounds();
-  const west = Math.max(87.5, bounds.getWest());
-  const east = Math.min(120, bounds.getEast());
-  const south = Math.max(41.3, bounds.getSouth());
-  const north = Math.min(52.2, bounds.getNorth());
-  const safeWest = west < east ? west : 87.5;
-  const safeEast = west < east ? east : 120;
-  const safeSouth = south < north ? south : 41.3;
-  const safeNorth = south < north ? north : 52.2;
-  particle.longitude =
-    safeWest +
-    deterministicUnit(index, particle.generation, 1.7) * (safeEast - safeWest);
-  particle.latitude =
-    safeSouth +
-    deterministicUnit(index, particle.generation, 9.3) * (safeNorth - safeSouth);
-  particle.age = Math.floor(
-    deterministicUnit(index, particle.generation, 17.1) * 90,
+  const west = Math.max(grid.bounds.west, bounds.getWest());
+  const east = Math.min(grid.bounds.east, bounds.getEast());
+  const south = Math.max(grid.bounds.south, bounds.getSouth());
+  const north = Math.min(grid.bounds.north, bounds.getNorth());
+  const safeWest = west < east ? west : grid.bounds.west;
+  const safeEast = west < east ? east : grid.bounds.east;
+  const safeSouth = south < north ? south : grid.bounds.south;
+  const safeNorth = south < north ? north : grid.bounds.north;
+
+  let bestLongitude = safeWest;
+  let bestLatitude = safeSouth;
+  let bestWeatherIntensity = -1;
+  const attempts = particle.role === "weather" ? 9 : 1;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const salt = attempt * 23.71;
+    const longitude =
+      safeWest +
+      deterministicUnit(index, particle.generation, 1.7 + salt) *
+        (safeEast - safeWest);
+    const latitude =
+      safeSouth +
+      deterministicUnit(index, particle.generation, 9.3 + salt) *
+        (safeNorth - safeSouth);
+    const intensity = weatherIntensity(
+      sampleWeatherGrid(grid, latitude, longitude),
+    );
+    if (particle.role === "airflow" || intensity > bestWeatherIntensity) {
+      bestLongitude = longitude;
+      bestLatitude = latitude;
+      bestWeatherIntensity = intensity;
+    }
+  }
+
+  particle.longitude = bestLongitude;
+  particle.latitude = bestLatitude;
+  particle.maxAge = Math.round(
+    58 + deterministicUnit(index, particle.generation, 29.8) * 58,
   );
+  particle.age = Math.floor(
+    deterministicUnit(index, particle.generation, 17.1) * particle.maxAge,
+  );
+  particle.phase = deterministicUnit(index, particle.generation, 41.2) * Math.PI * 2;
+  particle.size = 0.7 + deterministicUnit(index, particle.generation, 53.9) * 1.15;
 }
 
-function createParticles(count: number, map: MapLibreMap): Particle[] {
+function createParticles(
+  count: number,
+  map: MapLibreMap,
+  grid: WeatherGrid,
+): Particle[] {
   return Array.from({ length: count }, (_, index) => {
     const particle: Particle = {
       longitude: 103.8,
       latitude: 46.8,
       age: 0,
+      maxAge: 90,
       generation: 0,
+      role: index % 5 < 3 ? "airflow" : "weather",
+      phase: 0,
+      size: 1,
     };
-    resetParticle(particle, index, map);
+    resetParticle(particle, index, map, grid);
     return particle;
   });
 }
@@ -161,13 +384,19 @@ export class WindParticleRenderer {
     this.#grid = grid;
     this.#enabled = options.enabled;
     this.#reducedMotion = options.reducedMotion;
-    this.#particles = createParticles(particleBudget(map), map);
+    this.#particles = createParticles(particleBudget(map), map, grid);
     document.addEventListener("visibilitychange", this.#handleVisibility);
     this.restart();
   }
 
   setGrid(grid: WeatherGrid): void {
     this.#grid = grid;
+    this.#particles = createParticles(
+      particleBudget(this.#map),
+      this.#map,
+      this.#grid,
+    );
+    if (!this.#reducedMotion) this.#clearCanvas();
     this.redrawStatic();
   }
 
@@ -183,7 +412,20 @@ export class WindParticleRenderer {
 
   resize(): void {
     fitCanvas(this.#canvas, Math.min(window.devicePixelRatio || 1, 1.5));
-    this.#particles = createParticles(particleBudget(this.#map), this.#map);
+    this.#particles = createParticles(
+      particleBudget(this.#map),
+      this.#map,
+      this.#grid,
+    );
+    this.restart();
+  }
+
+  refreshViewport(): void {
+    this.#particles = createParticles(
+      particleBudget(this.#map),
+      this.#map,
+      this.#grid,
+    );
     this.restart();
   }
 
@@ -213,29 +455,36 @@ export class WindParticleRenderer {
     context.clearRect(0, 0, this.#canvas.width, this.#canvas.height);
     context.save();
     context.scale(ratio, ratio);
-    context.strokeStyle = "rgba(244, 252, 255, 0.82)";
-    context.lineWidth = 1.2;
-    for (let latitude = 42; latitude <= 52; latitude += 1.35) {
-      for (let longitude = 88; longitude <= 120; longitude += 2.2) {
-        const sample = sampleWeatherGrid(this.#grid, latitude, longitude);
+    context.strokeStyle = "rgba(244, 252, 255, 0.76)";
+    context.fillStyle = "rgba(244, 252, 255, 0.82)";
+    context.lineWidth = 1.1;
+    for (let y = 28; y < this.#canvas.clientHeight; y += 58) {
+      for (let x = 28; x < this.#canvas.clientWidth; x += 58) {
+        const coordinates = this.#map.unproject([x, y]);
+        const sample = sampleWeatherGrid(
+          this.#grid,
+          coordinates.lat,
+          coordinates.lng,
+        );
         if (!sample) continue;
-        const point = this.#map.project([longitude, latitude]);
-        if (
-          point.x < 0 ||
-          point.y < 0 ||
-          point.x > this.#canvas.clientWidth ||
-          point.y > this.#canvas.clientHeight
-        ) {
-          continue;
-        }
-        const scale = 0.65;
+        const scale = 0.72;
         context.beginPath();
-        context.moveTo(point.x, point.y);
+        context.moveTo(x, y);
         context.lineTo(
-          point.x + sample.windUMps * scale,
-          point.y - sample.windVMps * scale,
+          x + sample.windUMps * scale,
+          y - sample.windVMps * scale,
         );
         context.stroke();
+        if (sample.condition === "snow") {
+          context.beginPath();
+          context.arc(x, y, 1.7, 0, Math.PI * 2);
+          context.fill();
+        } else if (sample.condition === "rain") {
+          context.beginPath();
+          context.moveTo(x - 1, y - 2);
+          context.lineTo(x + 1, y + 3);
+          context.stroke();
+        }
       }
     }
     context.restore();
@@ -256,6 +505,89 @@ export class WindParticleRenderer {
     }
   };
 
+  #clearCanvas(): void {
+    const context = this.#canvas.getContext("2d");
+    context?.clearRect(0, 0, this.#canvas.width, this.#canvas.height);
+  }
+
+  #drawParticle(
+    context: CanvasRenderingContext2D,
+    particle: Particle,
+    previous: { x: number; y: number },
+    next: { x: number; y: number },
+    sample: NonNullable<ReturnType<typeof sampleWeatherGrid>>,
+  ): void {
+    const intensity = weatherIntensity(sample);
+    // Visual emphasis only; this is not an alert or an official storm
+    // classification. Production warning state must come from attributed data.
+    const isStorm =
+      sample.windSpeedMps >= 9 &&
+      (sample.condition === "rain" ||
+        sample.condition === "snow" ||
+        sample.condition === "dusty");
+
+    if (particle.role === "airflow") {
+      const alpha = Math.min(0.68, 0.28 + sample.windSpeedMps / 30);
+      const dx = next.x - previous.x;
+      const dy = next.y - previous.y;
+      const distance = Math.max(0.001, Math.hypot(dx, dy));
+      const visualLength = Math.min(6.2, 2.4 + sample.windSpeedMps * 0.32);
+      context.strokeStyle = `rgba(235, 251, 255, ${alpha})`;
+      context.lineWidth = Math.min(1.2, 0.72 + sample.windSpeedMps / 28);
+      context.beginPath();
+      context.moveTo(previous.x, previous.y);
+      context.lineTo(
+        previous.x + (dx / distance) * visualLength,
+        previous.y + (dy / distance) * visualLength,
+      );
+      context.stroke();
+      return;
+    }
+
+    if (sample.condition === "snow") {
+      const radius = particle.size * (isStorm ? 1.25 : 1);
+      context.strokeStyle = `rgba(255, 255, 255, ${0.42 + intensity * 0.45})`;
+      context.lineWidth = isStorm ? 1.05 : 0.72;
+      context.beginPath();
+      context.moveTo(next.x - radius, next.y);
+      context.lineTo(next.x + radius, next.y);
+      context.moveTo(next.x, next.y - radius);
+      context.lineTo(next.x, next.y + radius);
+      context.stroke();
+      return;
+    }
+
+    if (sample.condition === "rain") {
+      const dx = next.x - previous.x;
+      const dy = next.y - previous.y;
+      const length = (isStorm ? 2.4 : 1.45) + intensity * 1.6;
+      context.strokeStyle = isStorm
+        ? `rgba(215, 238, 255, ${0.52 + intensity * 0.35})`
+        : `rgba(150, 218, 255, ${0.34 + intensity * 0.38})`;
+      context.lineWidth = isStorm ? 1.45 : 0.9;
+      context.beginPath();
+      context.moveTo(previous.x, previous.y);
+      context.lineTo(previous.x + dx * length, previous.y + dy * length);
+      context.stroke();
+      return;
+    }
+
+    if (sample.condition === "dusty") {
+      context.fillStyle = `rgba(211, 158, 85, ${0.2 + intensity * 0.3})`;
+      context.beginPath();
+      context.ellipse(
+        next.x,
+        next.y,
+        particle.size * (isStorm ? 2.4 : 1.6),
+        particle.size * 0.72,
+        Math.atan2(next.y - previous.y, next.x - previous.x),
+        0,
+        Math.PI * 2,
+      );
+      context.fill();
+    }
+  }
+
   #drawFrame(now: number): void {
     if (this.#disposed || !this.#enabled || document.hidden) return;
     const elapsed = now - this.#lastFrameTime;
@@ -270,29 +602,32 @@ export class WindParticleRenderer {
     const ratio = this.#canvas.width / Math.max(1, this.#canvas.clientWidth);
     context.save();
     context.globalCompositeOperation = "destination-in";
-    context.fillStyle = "rgba(0, 0, 0, 0.9)";
+    context.fillStyle = "rgba(0, 0, 0, 0.5)";
     context.fillRect(0, 0, this.#canvas.width, this.#canvas.height);
     context.restore();
     context.save();
     context.scale(ratio, ratio);
-    context.strokeStyle = "rgba(247, 253, 255, 0.74)";
-    context.lineWidth = 0.82;
-
     this.#particles.forEach((particle, index) => {
       const sample = sampleWeatherGrid(
         this.#grid,
         particle.latitude,
         particle.longitude,
       );
-      if (!sample || particle.age > 110) {
-        resetParticle(particle, index, this.#map);
+      if (!sample || particle.age > particle.maxAge) {
+        resetParticle(particle, index, this.#map, this.#grid);
         return;
       }
       const previous = this.#map.project([
         particle.longitude,
         particle.latitude,
       ]);
-      const simulationSeconds = deltaSeconds * SIMULATION_SECONDS_PER_REAL_SECOND;
+      // Geographic U/V advection stays faithful to the grid while zoom scaling
+      // prevents the same metres-per-second from exploding into huge pixel
+      // streaks at street-level zooms.
+      const zoomTimeScale = Math.pow(2, INITIAL_PARTICLE_ZOOM - this.#map.getZoom());
+      const simulationSeconds =
+        deltaSeconds * SIMULATION_SECONDS_PER_REAL_SECOND *
+        Math.max(0.018, Math.min(1.65, zoomTimeScale));
       particle.latitude +=
         (sample.windVMps * simulationSeconds) / 111_320;
       particle.longitude +=
@@ -306,13 +641,10 @@ export class WindParticleRenderer {
         next.x <= this.#canvas.clientWidth + 10 &&
         next.y <= this.#canvas.clientHeight + 10;
       if (!isVisible || !this.#grid.metadata.bounds || !sample) {
-        resetParticle(particle, index, this.#map);
+        resetParticle(particle, index, this.#map, this.#grid);
         return;
       }
-      context.beginPath();
-      context.moveTo(previous.x, previous.y);
-      context.lineTo(next.x, next.y);
-      context.stroke();
+      this.#drawParticle(context, particle, previous, next, sample);
     });
     context.restore();
     this.#frameId = requestAnimationFrame((time) => this.#drawFrame(time));

@@ -1,6 +1,6 @@
 # PROJECT_ARCHITECTURE.md — Tsag-uur
 
-**Status:** Phase 1 map-first frontend and Herder Mode MVP implemented with deterministic synthetic data. Real forecast ingestion and backend services are not implemented yet.
+**Status:** Phase 1 map-first frontend, live-forecast Herder Mode, and Farmer Intelligence Mode demo implemented. University WRF ingestion and backend services are not implemented yet.
 **Budget:** $0 incremental software/service spend for initial development.
 **Audience:** Citizens, Mongolian herders, researchers.
 **Purpose:** Turn meteorological model outputs into understandable forecasts, explainable risk context, and scientific exploration.
@@ -8,6 +8,7 @@
 ## 1. Differentiation
 - **Citizen:** understandable local-grid forecast and hourly trend.
 - **Herder:** practical context for wind, temperature, precipitation; risk rules only after domain validation.
+- **Farmer:** explainable irrigation, harvest-weather, planting, frost, and fieldwork assessments with explicit missing inputs.
 - **Researcher:** inspect layers, point series, provenance, and export where permitted.
 - **Lite Mode:** low-bandwidth, text-first forecast and graceful degradation.
 - **Trust:** always disclose forecast validity, model run, data source, grid resolution, limitations.
@@ -18,9 +19,10 @@ Browser (mobile-first)
    | HTTPS
 CDN / edge caching (optional free tier)
    |---- Next.js App Router: server components and small client islands
-   |---- WeatherDataProvider: synthetic source now, processed forecast source later
+   |---- WeatherDataProvider: synthetic explorer source now, processed WRF source later
+   |---- /api/herder-forecast: validated coordinates -> Open-Meteo live forecast adapter
    |---- MapLibre GL JS (conditional dynamic import; omitted in Lite Mode)
-   |---- Canvas weather raster + U/V wind particle overlay
+   |---- Canvas weather raster + zoom-aware U/V wind and local condition particles
    |---- cached forecast raster/vector tiles (future)
    |
 FastAPI (stateless; future)
@@ -77,7 +79,7 @@ tsag-uur/
     app/                 # Next.js routes, layouts, server components
     components/          # shared UI and weather presentation
     features/
-      herder-mode/       # local reports, demo 7+7 day series, heuristics, risk UI
+      herder-mode/       # live forecast comparison, pasture direction UI, local notes
       map/               # MapLibre adapter, base-map config, Canvas weather rendering
       weather-data/      # provider contract, interpolation, deterministic demo dataset
       weather-explorer/  # map-first UI, controls, timeline, Lite fallback
@@ -96,20 +98,36 @@ Do not create empty directories solely to match this target tree.
 3. Change forecast valid time -> deterministic layer, wind, and point values update together.
 4. Use Lite Mode -> no MapLibre JavaScript or base-map tile requests; text/grid fallback remains useful.
 5. Open `/dashboard` -> the Phase 1 information-dashboard reference.
-6. Citizen and Herder modes are active. Agriculture and Researcher modes remain unavailable. Herder Mode is a clearly labelled, non-operational DEMO until real data and field validation are complete.
+6. Citizen, Herder, and Farmer modes are active. Researcher mode remains unavailable. Herder Mode uses an attributable external forecast but does not claim official warnings or pasture-condition knowledge. Farmer Mode remains a non-operational demo.
+
+### 6.3 Farmer Mode data flow
+
+```text
+Deterministic 7-day agricultural scenario
+  -> typed daily interval weather + provenance
+  -> local-only FarmField and FieldNote inputs
+  -> transparent irrigation / harvest-window / planting / risk screens
+  -> accessible cards and charts + shared MapLibre weather provider
+```
+
+Farmer Mode never infers soil moisture, crop maturity, precipitation probability,
+ET₀, crop-water demand, irrigation depth, or official warnings. Its decision rules
+return explicit missing inputs, limitations, validity, and provenance. See
+`FARMER_MODE_RESEARCH.md` for primary sources and the FAO-56-compatible future boundary.
 
 ### 6.2 Herder Mode data flow
 
 ```text
-Deterministic scenario (snow / dust / heavy rain)
-  -> strictly separated historical and forecast steps
-  -> local missing-livestock report (browser storage only)
-  -> U/V historical summary + user observations
-  -> explainable sector heuristics
-  -> MapLibre overlays or zero-map-JS Lite fallback
+User-approved browser location or entered coordinates
+  -> validated Next.js route input
+  -> Open-Meteo Best Match current + 36-hour forecast
+  -> center point plus north/east/south/west points 12 km away
+  -> transparent 12-hour comparison by user-selected priority
+  -> current conditions, 24-hour change summary, 36-hour timeline
+  -> optional missing-livestock note (browser storage only)
 ```
 
-The modules separate `demo-scenarios`, report types, historical analysis/search heuristics, risk assessment, MapLibre presentation, and the client UI. Search sectors are editable illustrations, not animal tracks, probability surfaces, or safe travel routes. Species configuration changes the visualization extent but does not claim validated travel distance. See `HERDER_MODE_RESEARCH.md`.
+The comparison never generates a confidence score or official warning. It ranks one raw weather metric selected by the herder: lowest forecast gust, lowest precipitation total, or highest minimum apparent temperature. It does not measure grass, water, snow depth, ice, terrain, road access, or carrying capacity. See `HERDER_MODE_RESEARCH.md`.
 
 Future provider adapters should expose:
 
@@ -125,7 +143,7 @@ Synthetic analytic fields (current)
   -> typed WeatherGrid: temperature, U/V wind, precipitation,
      humidity, pressure, condition
   -> bilinear point sampling
-  -> Canvas colour raster + vector-driven wind particles
+  -> Canvas colour raster + vector-driven wind, rain, snow, and dust particles
   -> point panel + hourly timeline
 
 Processed WRF fields (future)
@@ -189,6 +207,9 @@ All chosen core frameworks/libraries are free/open source. Running infrastructur
 - **ADR-005:** Keep map rendering behind a provider boundary; synthetic and future WRF sources must use the same typed UI contract.
 - **ADR-006:** Lite Mode must remain useful without loading MapLibre or requesting third-party tiles.
 - **ADR-007:** Public OpenStreetMap Standard tiles are a development/demo base map, not the production scaling strategy.
-- **ADR-008:** Missing-livestock reports remain local-only until an explicit, reviewed sharing design exists; sensitive coordinates must not enter analytics or logs.
-- **ADR-009:** Herder search guidance uses deterministic, explainable sectors with no probability claim. Wind is one factor and never an inferred livestock track.
-- **ADR-010:** Historical and forecast data are distinct domain periods and receive separate UI states. Synthetic scenarios carry persistent DEMO status and never masquerade as alerts.
+- **ADR-008:** Missing-livestock notes remain local-only until an explicit, reviewed sharing design exists; sensitive coordinates must not enter analytics or logs.
+- **ADR-009:** Herder direction guidance compares attributable forecast metrics at four points and never claims pasture quality, animal movement, route safety, or probability.
+- **ADR-010:** Herder Mode shows no fabricated fallback weather. When the live provider is unavailable, it presents an explicit empty/error state.
+- **ADR-011:** Farmer field coordinates, configuration, and notes remain browser-local until a reviewed privacy and consent design exists.
+- **ADR-012:** Agricultural advisory results must separate weather-suitable windows from agronomic readiness; FAO-56 water-balance outputs remain unavailable until required inputs and validation exist.
+- **ADR-013:** Open-Meteo is a temporary, zero-account Herder Mode forecast adapter. It is not an official Mongolian warning feed and can later be replaced behind the route boundary by validated university WRF products.

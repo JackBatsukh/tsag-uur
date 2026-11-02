@@ -1,10 +1,21 @@
+import Link from "next/link";
+
 import {
   WEATHER_LAYER_DEFINITIONS,
   WEATHER_MODE_DEFINITIONS,
 } from "@/features/weather-data";
-import type { WeatherLayerId } from "@/features/weather-data";
+import type {
+  WeatherLayerId,
+  WeatherUserMode,
+} from "@/features/weather-data";
 
 import { CloseIcon, InfoCircleIcon, LiteIcon } from "./explorer-icons";
+
+const MODE_ROUTES: Partial<Record<WeatherUserMode, string>> = {
+  citizen: "/",
+  herder: "/herder",
+  agriculture: "/farmer",
+};
 
 interface ExplorerSidebarProps {
   readonly open: boolean;
@@ -77,18 +88,33 @@ export function ExplorerSidebar({
       <div className="sidebar-section">
         <p className="sidebar-section__label">Хэрэглэгчийн горим</p>
         <div className="mode-grid">
-          {WEATHER_MODE_DEFINITIONS.map((mode) => (
-            <button
-              type="button"
-              key={mode.id}
-              disabled={!mode.available}
-              aria-pressed={mode.id === "citizen"}
-              title={mode.available ? undefined : "Дараагийн үе шатанд нэвтрүүлнэ"}
-            >
-              {mode.labelMn}
-              {!mode.available ? <small>Дараа</small> : null}
-            </button>
-          ))}
+          {WEATHER_MODE_DEFINITIONS.map((mode) => {
+            const href = MODE_ROUTES[mode.id];
+            if (mode.available && href) {
+              return (
+                <Link
+                  key={mode.id}
+                  href={href}
+                  aria-current={mode.id === "citizen" ? "page" : undefined}
+                  onClick={onClose}
+                >
+                  {mode.labelMn}
+                </Link>
+              );
+            }
+
+            return (
+              <button
+                type="button"
+                key={mode.id}
+                disabled
+                title="Дараагийн үе шатанд нэвтрүүлнэ"
+              >
+                {mode.labelMn}
+                <small>Дараа</small>
+              </button>
+            );
+          })}
         </div>
         <p className="sidebar-helper">
           Одоогоор Иргэн горим ажиллана. Бусад горимд баталгаажаагүй зөвлөмж харуулахгүй.

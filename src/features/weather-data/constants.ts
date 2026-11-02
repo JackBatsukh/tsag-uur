@@ -139,7 +139,7 @@ export const WEATHER_MODE_DEFINITIONS: readonly WeatherModeDefinition[] =
   Object.freeze([
     { id: "citizen", labelMn: "Иргэн", available: true },
     { id: "herder", labelMn: "Малчин", available: true },
-    { id: "agriculture", labelMn: "Тариаланч", available: false },
+    { id: "agriculture", labelMn: "Тариаланч", available: true },
     { id: "researcher", labelMn: "Судлаач", available: false },
   ] satisfies readonly WeatherModeDefinition[]);
 

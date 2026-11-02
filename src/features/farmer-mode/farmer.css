@@ -1,0 +1,385 @@
+.farmer-app {
+  --farmer-ink: #18251d;
+  --farmer-muted: #657269;
+  --farmer-green: #2e6b45;
+  --farmer-green-strong: #1f5234;
+  --farmer-green-soft: #e9f3eb;
+  --farmer-gold: #c98c2c;
+  --farmer-orange: #c26535;
+  --farmer-line: #d9e0d8;
+  min-height: 100vh;
+  overflow-x: clip;
+  background: #f3f5f0;
+  color: var(--farmer-ink);
+}
+
+.farmer-app h1,
+.farmer-app h2,
+.farmer-app h3,
+.farmer-app h4,
+.farmer-app p { margin-top: 0; }
+
+.farmer-header {
+  position: sticky;
+  top: 0;
+  z-index: 90;
+  display: flex;
+  min-height: 4.5rem;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.65rem max(1rem, calc((100vw - 84rem) / 2));
+  border-bottom: 1px solid #d8dfd7;
+  background: rgba(252, 253, 249, 0.95);
+  backdrop-filter: blur(14px);
+}
+
+.farmer-brand { display: inline-flex; align-items: center; gap: 0.65rem; }
+.farmer-brand > span { display: grid; width: 2.45rem; height: 2.45rem; place-items: center; border-radius: 0.75rem; background: #e8f2ea; color: var(--farmer-green); }
+.farmer-brand svg { width: 1.65rem; height: 1.65rem; }
+.farmer-brand strong, .farmer-brand small { display: block; }
+.farmer-brand strong { font-size: 0.95rem; }
+.farmer-brand small { margin-top: 0.08rem; color: var(--farmer-muted); font-size: 0.55rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.farmer-header nav { display: flex; align-items: center; gap: 0.25rem; margin-left: auto; }
+.farmer-header nav a { min-height: 2.45rem; padding: 0.65rem 0.8rem; border-radius: 0.65rem; color: #536158; font-size: 0.72rem; font-weight: 750; }
+.farmer-header nav a[aria-current="page"] { background: var(--farmer-green); color: #fff; }
+.farmer-lite-toggle { display: inline-flex; min-height: 2.5rem; align-items: center; gap: 0.45rem; padding: 0.45rem 0.65rem; border: 1px solid var(--farmer-line); border-radius: 999px; background: #fff; font-size: 0.68rem; font-weight: 800; }
+.farmer-lite-toggle input { width: 1.05rem; height: 1.05rem; accent-color: var(--farmer-green); }
+
+.farmer-demo-banner { position: sticky; top: 4.5rem; z-index: 80; display: flex; min-height: 2.35rem; align-items: center; justify-content: center; gap: 0.7rem; padding: 0.4rem 1rem; border-bottom: 1px solid #e0be78; background: #fff4d7; color: #6b4814; font-size: 0.69rem; }
+.farmer-demo-banner strong { padding: 0.12rem 0.4rem; border-radius: 0.35rem; background: #7b5315; color: #fff; font-size: 0.58rem; letter-spacing: 0.08em; }
+.farmer-demo-banner span:last-child { color: #92702f; }
+
+.farmer-main { width: min(100% - 2rem, 84rem); margin-inline: auto; padding: 1.2rem 0 3.5rem; }
+.farmer-hero { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(18rem, 0.65fr); gap: 1.4rem; padding: clamp(1.5rem, 4vw, 3rem); border-radius: 1.5rem; background: radial-gradient(circle at 80% 0, rgba(226, 190, 92, 0.2), transparent 22rem), linear-gradient(135deg, #173f2a, #286043); color: #fff; box-shadow: 0 20px 60px rgba(31, 65, 43, 0.18); }
+.farmer-eyebrow { margin: 0 0 0.35rem; color: var(--farmer-green); font-size: 0.63rem; font-weight: 900; letter-spacing: 0.1em; text-transform: uppercase; }
+.farmer-hero .farmer-eyebrow, .farmer-trust-section .farmer-eyebrow { color: #f0c867; }
+.farmer-hero h1 { margin: 0; font-size: clamp(2.25rem, 6vw, 4.75rem); letter-spacing: -0.06em; line-height: 0.96; }
+.farmer-hero h1 span { color: #f2ce78; }
+.farmer-hero > div > p:not(.farmer-eyebrow) { max-width: 43rem; margin: 1rem 0 0; color: #d8e7dd; font-size: 0.92rem; line-height: 1.65; }
+.hero-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 1.25rem; }
+.hero-actions a { display: inline-flex; min-height: 2.8rem; align-items: center; padding: 0.65rem 0.9rem; border: 1px solid rgba(255,255,255,.25); border-radius: 0.7rem; background: rgba(255,255,255,.08); font-size: 0.74rem; font-weight: 800; }
+.hero-actions a:first-child { border-color: #f2ce78; background: #f2ce78; color: #23422f; }
+.farmer-hero aside { padding: 1.2rem; border: 1px solid rgba(255,255,255,.18); border-radius: 1rem; background: rgba(0,0,0,.13); }
+.farmer-hero aside > span { color: #c6d9cc; font-size: 0.65rem; font-weight: 800; text-transform: uppercase; }
+.farmer-hero aside > strong { display: block; margin-top: 0.35rem; color: #ffe1a0; font-size: 1.05rem; }
+.farmer-hero aside dl { margin: 1rem 0 0; }
+.farmer-hero aside dl div { padding: 0.55rem 0; border-top: 1px solid rgba(255,255,255,.12); }
+.farmer-hero aside dt { color: #bbd0c2; font-size: 0.6rem; }
+.farmer-hero aside dd { margin: 0.15rem 0 0; font-size: 0.72rem; font-weight: 750; overflow-wrap: anywhere; }
+
+.farmer-scenario-panel,
+.farmer-overview,
+.farmer-forecast,
+.farmer-advisory-section,
+.farmer-risk-section,
+.farmer-field-section,
+.farmer-map-section,
+.farmer-planner-section,
+.farmer-trust-section { margin-top: 1.25rem; padding: 1.35rem; border: 1px solid var(--farmer-line); border-radius: 1.25rem; background: #fff; box-shadow: 0 5px 24px rgba(37, 57, 43, 0.045); }
+
+.section-heading { display: flex; align-items: end; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+.section-heading h2 { margin: 0; font-size: clamp(1.35rem, 3vw, 2rem); letter-spacing: -0.035em; }
+.section-heading > p { max-width: 34rem; margin: 0; color: var(--farmer-muted); font-size: 0.75rem; line-height: 1.55; text-align: right; }
+
+.farmer-scenario-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.65rem; }
+.farmer-scenario-grid button { min-height: 8rem; padding: 0.85rem; border: 1px solid var(--farmer-line); border-radius: 0.85rem; background: #fafbf8; color: var(--farmer-ink); cursor: pointer; text-align: left; }
+.farmer-scenario-grid button[data-active="true"] { border-color: var(--farmer-green); background: var(--farmer-green-soft); box-shadow: inset 0 0 0 1px var(--farmer-green); }
+.farmer-scenario-grid strong, .farmer-scenario-grid span, .farmer-scenario-grid small { display: block; }
+.farmer-scenario-grid strong { font-size: 0.82rem; }
+.farmer-scenario-grid span { margin-top: 0.35rem; color: var(--farmer-muted); font-size: 0.68rem; line-height: 1.45; }
+.farmer-scenario-grid small { margin-top: 0.5rem; color: var(--farmer-green); font-size: 0.6rem; font-weight: 750; }
+
+.farmer-metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; }
+.farmer-metric-grid article { padding: 1rem; border-radius: 0.9rem; background: #f3f7f2; }
+.farmer-metric-grid span, .farmer-metric-grid strong, .farmer-metric-grid small { display: block; }
+.farmer-metric-grid span { color: var(--farmer-muted); font-size: 0.65rem; font-weight: 800; }
+.farmer-metric-grid strong { margin-top: 0.3rem; font-size: clamp(1.25rem, 3vw, 1.8rem); }
+.farmer-metric-grid small { margin-top: 0.25rem; color: #7b887f; font-size: 0.6rem; line-height: 1.4; }
+.provenance-strip { display: grid; grid-template-columns: 1.2fr 0.8fr 1fr; margin-top: 0.8rem; border: 1px solid var(--farmer-line); border-radius: 0.8rem; overflow: hidden; }
+.provenance-strip div { padding: 0.7rem 0.8rem; border-right: 1px solid var(--farmer-line); }
+.provenance-strip div:last-child { border-right: 0; }
+.provenance-strip span, .provenance-strip strong { display: block; }
+.provenance-strip span { color: var(--farmer-muted); font-size: 0.57rem; text-transform: uppercase; }
+.provenance-strip strong { margin-top: 0.15rem; font-size: 0.68rem; overflow-wrap: anywhere; }
+
+.farmer-day-list { display: flex; gap: 0.65rem; padding-bottom: 0.45rem; overflow-x: auto; scrollbar-color: #a9b6ac transparent; }
+.farmer-day-list article { width: 10.6rem; min-width: 10.6rem; padding: 0.85rem; border: 1px solid var(--farmer-line); border-radius: 0.9rem; background: #fcfdfb; }
+.farmer-day-list article[data-condition="rain"] { border-top: 4px solid #4b85bd; }
+.farmer-day-list article[data-condition="snow"] { border-top: 4px solid #7d9eb5; }
+.farmer-day-list article[data-condition="dusty"] { border-top: 4px solid #b47842; }
+.farmer-day-list time { color: var(--farmer-muted); font-size: 0.67rem; font-weight: 750; }
+.day-temperature { display: flex; align-items: baseline; gap: 0.4rem; margin: 0.55rem 0; }
+.day-temperature strong { font-size: 1.75rem; }
+.day-temperature span { color: var(--farmer-muted); font-size: 0.65rem; }
+.farmer-day-list dl { margin: 0; }
+.farmer-day-list dl div { display: flex; justify-content: space-between; gap: 0.4rem; padding: 0.28rem 0; border-top: 1px solid #e8ece6; }
+.farmer-day-list dt, .farmer-day-list dd { font-size: 0.6rem; }
+.farmer-day-list dt { color: var(--farmer-muted); }
+.farmer-day-list dd { margin: 0; font-weight: 750; text-align: right; }
+.farmer-day-list article > p { min-height: 2.6rem; padding: 0.5rem; margin: 0.55rem 0 0; border-radius: 0.55rem; background: #f1f5ef; color: #435248; font-size: 0.62rem; line-height: 1.4; }
+
+.farmer-charts { display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem; margin-top: 1rem; }
+.farmer-chart { padding: 0.9rem; margin: 0; border: 1px solid var(--farmer-line); border-radius: 0.9rem; }
+.farmer-chart figcaption { display: flex; justify-content: space-between; gap: 0.8rem; }
+.farmer-chart figcaption strong { font-size: 0.8rem; }
+.farmer-chart figcaption span { color: var(--farmer-muted); font-size: 0.62rem; }
+.farmer-chart svg { width: 100%; height: auto; margin-top: 0.4rem; }
+.farmer-chart svg text { fill: #758078; font-size: 8px; }
+.chart-axis { fill: none; stroke: #dce3dc; stroke-width: 1; }
+.chart-line { fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.chart-line--maximum { stroke: #c56b39; }
+.chart-line--minimum { stroke: #3475a5; }
+.chart-rain-bar { fill: #4d8ebc; }
+.chart-legend, .chart-note { margin: 0; color: var(--farmer-muted); font-size: 0.62rem; }
+.chart-key { display: inline-block; width: 1rem; height: 0.2rem; margin: 0 0.25rem 0 0.5rem; vertical-align: middle; }
+.chart-key--maximum { background: #c56b39; }
+.chart-key--minimum { background: #3475a5; }
+
+.farmer-advisory-card { padding: 1.1rem; border: 1px solid var(--farmer-line); border-left: 5px solid #a1aaa3; border-radius: 0.9rem; background: #fbfcfa; }
+.farmer-advisory-card[data-level="favorable"] { border-left-color: #3c8659; }
+.farmer-advisory-card[data-level="watch"] { border-left-color: #d39a36; }
+.farmer-advisory-card[data-level="avoid"] { border-left-color: #bc553c; }
+.farmer-card-heading { display: flex; align-items: start; justify-content: space-between; gap: 0.8rem; }
+.farmer-card-heading h3 { margin: 0.3rem 0 0; font-size: 1.15rem; }
+.farmer-status-chip, .illustrative-chip { display: inline-flex; padding: 0.18rem 0.4rem; border-radius: 999px; background: #edf1eb; color: #5d6a61; font-size: 0.55rem; font-weight: 900; letter-spacing: 0.05em; }
+.illustrative-chip { background: #fff1d5; color: #76521b; }
+.advisory-summary { margin: 0.8rem 0; color: #314238; font-size: 0.84rem; font-weight: 700; line-height: 1.55; }
+.advisory-columns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; }
+.advisory-columns > div { padding: 0.8rem; border-radius: 0.7rem; background: #f2f5f0; }
+.advisory-columns h4 { margin: 0; font-size: 0.7rem; }
+.advisory-columns ul, .advisory-columns p { padding-left: 1rem; margin: 0.45rem 0 0; color: var(--farmer-muted); font-size: 0.67rem; line-height: 1.5; }
+.farmer-advisory-card > details { margin-top: 0.75rem; font-size: 0.67rem; }
+.farmer-advisory-card summary, .farmer-risk-grid summary, .weather-window-grid summary { color: var(--farmer-green); cursor: pointer; font-weight: 800; }
+.farmer-advisory-card details p, .farmer-advisory-card details ul { color: var(--farmer-muted); }
+.weather-window-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin-top: 0.8rem; }
+.weather-window-grid article { padding: 0.9rem; border: 1px solid var(--farmer-line); border-radius: 0.8rem; }
+.weather-window-grid article[data-level="favorable"] { border-color: #75a887; background: #f2f8f3; }
+.weather-window-grid article > span { color: var(--farmer-muted); font-size: 0.6rem; font-weight: 800; }
+.weather-window-grid h3 { margin: 0.3rem 0; font-size: 0.9rem; }
+.weather-window-grid strong { color: #6e5525; font-size: 0.68rem; }
+.weather-window-grid ul { padding-left: 1rem; color: var(--farmer-muted); font-size: 0.67rem; line-height: 1.5; }
+
+.farmer-risk-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.7rem; }
+.farmer-risk-grid article { padding: 0.9rem; border: 1px solid var(--farmer-line); border-radius: 0.8rem; background: #fafbf8; }
+.farmer-risk-grid article[data-level="avoid"] { border-color: #d28b6c; background: #fff4ee; }
+.farmer-risk-grid article[data-level="watch"] { border-color: #dec27b; background: #fffae9; }
+.farmer-risk-grid article > span { color: var(--farmer-muted); font-size: 0.55rem; font-weight: 900; }
+.farmer-risk-grid h3 { margin: 0.35rem 0; font-size: 0.84rem; }
+.farmer-risk-grid strong { font-size: 1.2rem; }
+.farmer-risk-grid p, .farmer-risk-grid small { display: block; margin: 0.45rem 0 0; color: var(--farmer-muted); font-size: 0.65rem; line-height: 1.5; }
+.farmer-risk-grid details { margin-top: 0.6rem; font-size: 0.63rem; }
+
+.farmer-field-layout { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(17rem, 0.6fr); gap: 1rem; align-items: start; }
+.farmer-field-form { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+.farmer-field-form label, .field-note-form label, .farmer-map-controls label { display: flex; min-width: 0; flex-direction: column; gap: 0.3rem; }
+.farmer-field-form label > span, .field-note-form label > span, .farmer-map-controls label > span, .field-location-inputs legend { color: #47554b; font-size: 0.67rem; font-weight: 800; }
+.farmer-field-form input, .farmer-field-form select, .farmer-field-form textarea, .field-note-form input, .field-note-form select, .field-note-form textarea { width: 100%; min-height: 2.75rem; padding: 0.65rem 0.72rem; border: 1px solid #cfd8cf; border-radius: 0.65rem; background: #fff; color: var(--farmer-ink); }
+.field-form-wide { grid-column: 1 / -1; }
+.field-location-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; padding: 0.8rem; border: 1px solid var(--farmer-line); border-radius: 0.75rem; }
+.field-location-inputs small { grid-column: 1 / -1; color: var(--farmer-muted); font-size: 0.62rem; }
+.field-form-actions { display: flex; flex-wrap: wrap; gap: 0.55rem; }
+.farmer-primary-button, .farmer-danger-button, .field-note-form button, .farmer-lite-map button { min-height: 2.75rem; padding: 0.65rem 0.85rem; border-radius: 0.65rem; cursor: pointer; font-size: 0.7rem; font-weight: 800; }
+.farmer-primary-button, .field-note-form button { border: 1px solid var(--farmer-green); background: var(--farmer-green); color: #fff; }
+.farmer-danger-button { border: 1px solid #d2a496; background: #fff; color: #9b4936; }
+.field-form-message { margin: 0; color: var(--farmer-green); font-size: 0.68rem; font-weight: 750; }
+.field-summary-card { padding: 1rem; border-radius: 0.9rem; background: #173f2a; color: #fff; }
+.field-summary-card > span { color: #bbd1c2; font-size: 0.6rem; text-transform: uppercase; }
+.field-summary-card h3 { margin: 0.3rem 0 0; color: #f4d17a; }
+.field-summary-card dl { margin: 0.8rem 0; }
+.field-summary-card dl div { padding: 0.5rem 0; border-top: 1px solid rgba(255,255,255,.12); }
+.field-summary-card dt { color: #bad0c0; font-size: 0.58rem; }
+.field-summary-card dd { margin: 0.12rem 0 0; font-size: 0.7rem; font-weight: 800; }
+.field-summary-card p { margin: 0; color: #d7e4da; font-size: 0.68rem; line-height: 1.5; }
+.field-notes-panel { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--farmer-line); }
+.field-notes-panel h3 { margin: 0; }
+.field-note-form { display: grid; grid-template-columns: 10rem 10rem minmax(15rem, 1fr) auto; gap: 0.65rem; align-items: end; margin-top: 0.8rem; }
+.field-note-form textarea { resize: vertical; }
+.field-note-list { display: grid; gap: 0.55rem; margin-top: 0.8rem; }
+.field-note-list article { position: relative; padding: 0.75rem 5rem 0.75rem 0.8rem; border: 1px solid var(--farmer-line); border-radius: 0.7rem; background: #fafbf8; }
+.field-note-list article > div { display: flex; gap: 0.6rem; color: var(--farmer-muted); font-size: 0.6rem; font-weight: 800; }
+.field-note-list article p { margin: 0.35rem 0 0; font-size: 0.7rem; }
+.field-note-list article button { position: absolute; top: 0.65rem; right: 0.65rem; border: 0; background: transparent; color: #a34d38; cursor: pointer; font-size: 0.63rem; font-weight: 800; }
+.empty-note-state { margin: 0; color: var(--farmer-muted); font-size: 0.7rem; }
+
+.farmer-map-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; align-items: center; margin-bottom: 0.75rem; }
+.farmer-map-controls > div { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.farmer-map-controls button { min-height: 2.35rem; padding: 0.45rem 0.65rem; border: 1px solid var(--farmer-line); border-radius: 0.6rem; background: #fff; color: var(--farmer-muted); cursor: pointer; font-size: 0.65rem; font-weight: 750; }
+.farmer-map-controls button[aria-pressed="true"] { border-color: var(--farmer-green); background: var(--farmer-green); color: #fff; }
+.farmer-map-controls input { width: 100%; accent-color: var(--farmer-green); }
+.farmer-map-frame { position: relative; min-height: 34rem; overflow: hidden; border: 1px solid var(--farmer-line); border-radius: 1rem; background: #dce7df; }
+.farmer-map-frame .weather-map { position: absolute; inset: 0; }
+.farmer-lite-map { display: grid; min-height: 34rem; place-content: center; padding: 2rem; text-align: center; }
+.farmer-lite-map p { color: var(--farmer-muted); }
+.farmer-lite-map button { justify-self: center; border: 1px solid var(--farmer-green); background: var(--farmer-green); color: #fff; }
+.map-privacy-note { margin: 0.6rem 0 0; color: var(--farmer-muted); font-size: 0.65rem; }
+
+.farmer-planner-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
+.farmer-planner-grid .advisory-columns { grid-template-columns: 1fr; }
+.farmer-trust-section { background: #173f2a; color: #fff; }
+.farmer-trust-section h2 { margin: 0; }
+.farmer-trust-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.8rem; margin-top: 1rem; }
+.farmer-trust-grid article { padding: 1rem; border: 1px solid rgba(255,255,255,.14); border-radius: 0.8rem; background: rgba(255,255,255,.05); }
+.farmer-trust-grid h3 { margin: 0; color: #f0c867; font-size: 0.88rem; }
+.farmer-trust-grid ul { padding-left: 1rem; color: #d6e4da; font-size: 0.69rem; line-height: 1.6; }
+.farmer-trust-grid a { text-decoration: underline; text-underline-offset: 0.15rem; }
+.farmer-final-warning { padding: 0.8rem; margin: 1rem 0 0; border-radius: 0.7rem; background: #f5e6bb; color: #5e400f; font-size: 0.72rem; font-weight: 750; }
+.farmer-footer { display: flex; justify-content: center; gap: 1.2rem; padding: 1.5rem; border-top: 1px solid var(--farmer-line); color: var(--farmer-muted); font-size: 0.7rem; }
+.farmer-footer a { color: var(--farmer-green); font-weight: 800; }
+
+.farmer-mobile-nav { display: none; }
+
+#farmer-overview,
+#farmer-forecast,
+#irrigation,
+#my-field,
+#farmer-map { scroll-margin-top: 8rem; }
+
+@media (hover: hover) {
+  .farmer-header nav a, .farmer-scenario-grid button, .farmer-map-controls button, .farmer-primary-button, .farmer-danger-button, .field-note-form button { transition: border-color 150ms ease, background-color 150ms ease, color 150ms ease, transform 150ms ease; }
+  .farmer-scenario-grid button:hover { transform: translateY(-1px); border-color: #97b29d; }
+}
+
+@media (max-width: 72rem) {
+  .farmer-scenario-grid { grid-template-columns: repeat(3, 1fr); }
+  .farmer-field-layout { grid-template-columns: 1fr; }
+  .field-summary-card { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1rem; }
+  .field-summary-card > span, .field-summary-card h3, .field-summary-card p { grid-column: 1 / -1; }
+  .farmer-risk-grid { grid-template-columns: repeat(2, 1fr); }
+  .field-note-form { grid-template-columns: 1fr 1fr; }
+  .field-note-text { grid-column: 1 / -1; }
+}
+
+@media (max-width: 52rem) {
+  .farmer-app { padding-bottom: calc(4.75rem + env(safe-area-inset-bottom)); }
+  .farmer-header {
+    min-height: auto;
+    flex-wrap: wrap;
+    gap: 0.4rem 0.6rem;
+    padding: max(0.55rem, env(safe-area-inset-top)) 0.65rem 0.5rem;
+  }
+  .farmer-brand > span { width: 2.25rem; height: 2.25rem; }
+  .farmer-header nav {
+    order: 3;
+    width: calc(100% + 1.3rem);
+    margin: 0 -0.65rem;
+    padding: 0 0.65rem 0.05rem;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: none;
+    white-space: nowrap;
+  }
+  .farmer-header nav::-webkit-scrollbar,
+  .farmer-scenario-grid::-webkit-scrollbar,
+  .farmer-day-list::-webkit-scrollbar { display: none; }
+  .farmer-header nav a { min-height: 2.75rem; padding: 0.6rem 0.75rem; }
+  .farmer-lite-toggle { margin-left: auto; }
+  .farmer-demo-banner { position: relative; top: auto; align-items: flex-start; flex-direction: column; gap: 0.12rem; padding: 0.55rem 0.75rem; font-size: 0.68rem; line-height: 1.4; }
+  .farmer-main { width: min(100% - 0.75rem, 84rem); padding: 0.55rem 0 1.25rem; }
+  .farmer-hero { grid-template-columns: 1fr; gap: 1rem; padding: 1.15rem; border-radius: 1rem; }
+  .farmer-hero h1 { font-size: clamp(2rem, 10vw, 2.9rem); line-height: 1.02; overflow-wrap: anywhere; }
+  .farmer-hero > div > p:not(.farmer-eyebrow) { margin-top: 0.75rem; font-size: 0.86rem; line-height: 1.55; }
+  .hero-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 1rem; }
+  .hero-actions a { justify-content: center; text-align: center; }
+  .farmer-hero aside { padding: 0.9rem; }
+  .section-heading { align-items: flex-start; flex-direction: column; }
+  .section-heading > p { text-align: left; }
+  .section-heading h2 { font-size: 1.3rem; overflow-wrap: anywhere; }
+  .farmer-scenario-grid {
+    display: flex;
+    gap: 0.65rem;
+    margin-inline: -0.85rem;
+    padding: 0 0.85rem 0.45rem;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scroll-padding-inline: 0.85rem;
+    scroll-snap-type: inline mandatory;
+    scrollbar-width: none;
+  }
+  .farmer-scenario-grid button { min-height: 7rem; flex: 0 0 min(82vw, 20rem); scroll-snap-align: start; }
+  .farmer-metric-grid { grid-template-columns: 1fr 1fr; }
+  .farmer-charts, .advisory-columns, .farmer-planner-grid, .farmer-trust-grid { grid-template-columns: 1fr; }
+  .weather-window-grid { grid-template-columns: 1fr; }
+  .farmer-day-list { margin-inline: -0.85rem; padding-inline: 0.85rem; scroll-padding-inline: 0.85rem; scroll-snap-type: inline mandatory; scrollbar-width: none; }
+  .farmer-day-list article { width: min(78vw, 18rem); min-width: min(78vw, 18rem); scroll-snap-align: start; }
+  .farmer-chart { padding: 0.75rem; }
+  .farmer-chart figcaption { align-items: flex-start; flex-direction: column; gap: 0.15rem; }
+  .farmer-card-heading { flex-direction: column; gap: 0.4rem; }
+  .advisory-summary { font-size: 0.8rem; }
+  .farmer-map-controls { grid-template-columns: 1fr; }
+  .farmer-map-controls button { min-height: 2.75rem; }
+  .farmer-map-controls input[type="range"] { min-height: 2.75rem; }
+  .farmer-map-frame, .farmer-lite-map { min-height: 22rem; border-radius: 0.8rem; }
+  .farmer-field-form input,
+  .farmer-field-form select,
+  .farmer-field-form textarea,
+  .field-note-form input,
+  .field-note-form select,
+  .field-note-form textarea { min-height: 3rem; font-size: 1rem; }
+  .farmer-primary-button,
+  .farmer-danger-button,
+  .field-note-form button,
+  .farmer-lite-map button { min-height: 3rem; }
+  .farmer-mobile-nav {
+    position: fixed;
+    right: 0.5rem;
+    bottom: max(0.5rem, env(safe-area-inset-bottom));
+    left: 0.5rem;
+    z-index: 100;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    padding: 0.3rem;
+    border: 1px solid rgba(46, 107, 69, 0.18);
+    border-radius: 1rem;
+    background: rgba(252, 253, 249, 0.94);
+    box-shadow: 0 12px 36px rgba(28, 61, 39, 0.2);
+    backdrop-filter: blur(16px);
+  }
+  .farmer-mobile-nav a {
+    display: flex;
+    min-width: 0;
+    min-height: 3.2rem;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 0.1rem;
+    border-radius: 0.75rem;
+    color: var(--farmer-muted);
+    font-size: 0.66rem;
+    font-weight: 800;
+    line-height: 1.1;
+  }
+  .farmer-mobile-nav a:active { background: var(--farmer-green-soft); color: var(--farmer-green); }
+  .farmer-mobile-nav span { color: var(--farmer-green); font-size: 1rem; font-weight: 900; }
+}
+
+@media (max-width: 34rem) {
+  .farmer-scenario-panel, .farmer-overview, .farmer-forecast, .farmer-advisory-section, .farmer-risk-section, .farmer-field-section, .farmer-map-section, .farmer-planner-section, .farmer-trust-section { margin-top: 0.75rem; padding: 0.85rem; border-radius: 0.9rem; }
+  .farmer-risk-grid, .farmer-field-form, .provenance-strip { grid-template-columns: 1fr; }
+  .field-form-wide { grid-column: auto; }
+  .field-location-inputs { grid-template-columns: 1fr; }
+  .field-location-inputs small { grid-column: auto; }
+  .provenance-strip div { border-right: 0; border-bottom: 1px solid var(--farmer-line); }
+  .field-summary-card { display: block; }
+  .field-note-form { grid-template-columns: 1fr; }
+  .field-note-text { grid-column: auto; }
+  .field-form-actions { display: grid; }
+  .farmer-primary-button, .farmer-danger-button, .field-note-form button { width: 100%; }
+  .field-note-list article { padding: 0.75rem; }
+  .field-note-list article button { position: static; min-height: 2.75rem; padding: 0.5rem 0; margin-top: 0.4rem; }
+  .farmer-map-frame, .farmer-lite-map { min-height: 20rem; }
+  .farmer-footer { flex-wrap: wrap; justify-content: flex-start; padding: 1.25rem 0.75rem; }
+}
+
+@media (max-width: 24rem) {
+  .farmer-metric-grid { grid-template-columns: 1fr; }
+  .hero-actions { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .farmer-app *, .farmer-app *::before, .farmer-app *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+}
+
+@media (prefers-contrast: more) {
+  .farmer-app { --farmer-line: #727b74; }
+  .farmer-field-form input, .farmer-field-form select, .farmer-field-form textarea { border-width: 2px; }
+}

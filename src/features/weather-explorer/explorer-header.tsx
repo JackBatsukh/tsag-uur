@@ -8,18 +8,14 @@ import {
   DEMO_LOCATIONS,
   findDemoLocation,
 } from "./explorer-config";
-import { LayersIcon, MenuIcon, SearchIcon } from "./explorer-icons";
+import { SearchIcon } from "./explorer-icons";
 
 interface ExplorerHeaderProps {
   readonly onSelectCoordinates: (coordinates: WeatherCoordinates) => void;
-  readonly onRequestMenu: () => void;
-  readonly activeLayerLabel: string;
 }
 
 export function ExplorerHeader({
   onSelectCoordinates,
-  onRequestMenu,
-  activeLayerLabel,
 }: ExplorerHeaderProps) {
   const listId = useId();
   const [query, setQuery] = useState("");
@@ -82,24 +78,6 @@ export function ExplorerHeader({
         <span className="dataset-status__short">Demo</span>
       </div>
 
-      <button
-        className="header-action header-action--layers"
-        type="button"
-        onClick={onRequestMenu}
-        aria-controls="explorer-sidebar"
-      >
-        <LayersIcon />
-        <span>{activeLayerLabel}</span>
-      </button>
-      <button
-        className="header-action header-action--menu"
-        type="button"
-        onClick={onRequestMenu}
-        aria-controls="explorer-sidebar"
-        aria-label="Газрын зургийн цэс нээх"
-      >
-        <MenuIcon />
-      </button>
     </header>
   );
 }
