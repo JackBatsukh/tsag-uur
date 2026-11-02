@@ -199,6 +199,32 @@
   font-weight: 700;
 }
 
+.device-location-saved {
+  display: flex;
+  width: max-content;
+  max-width: 100%;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0.7rem;
+  margin: -0.45rem 0 1rem auto;
+  border-radius: 999px;
+  background: #e5f2e9;
+  color: #28664d;
+  font-size: 0.67rem;
+  font-weight: 780;
+}
+
+.device-location-saved span {
+  display: grid;
+  width: 1rem;
+  height: 1rem;
+  place-items: center;
+  border-radius: 50%;
+  background: #2f835d;
+  color: #fff;
+  font-size: 0.58rem;
+}
+
 .empty-weather {
   display: grid;
   min-height: 23rem;
@@ -248,7 +274,8 @@
 .pasture-section,
 .outlook-section,
 .source-strip,
-.lost-livestock {
+.lost-livestock,
+.livestock-search {
   border: 1px solid var(--herder-line);
   border-radius: 1.25rem;
   background: var(--herder-surface);
@@ -313,7 +340,8 @@
 
 .pasture-section,
 .outlook-section,
-.lost-livestock { padding: 1.35rem; margin-top: 1rem; }
+.lost-livestock,
+.livestock-search { padding: 1.35rem; margin-top: 1rem; }
 .herder-app .section-heading { display: flex; flex-direction: row; align-items: flex-end; justify-content: space-between; gap: 1rem; }
 .herder-app .section-heading h2,
 .lost-livestock h2 { font-size: clamp(1.5rem, 3vw, 2rem); }
@@ -394,6 +422,439 @@
 .source-strip summary { color: var(--herder-green); cursor: pointer; font-size: 0.65rem; font-weight: 800; }
 .source-strip ul { position: absolute; right: 0; z-index: 5; width: min(24rem, 80vw); padding: 0.9rem 0.9rem 0.9rem 1.9rem; margin: 0.5rem 0 0; border: 1px solid var(--herder-line); border-radius: 0.8rem; background: #fff; box-shadow: 0 12px 35px rgba(25, 44, 35, 0.14); color: var(--herder-muted); font-size: 0.68rem; line-height: 1.5; }
 
+.livestock-search {
+  scroll-margin-top: 5.5rem;
+  background:
+    linear-gradient(135deg, rgba(231, 241, 234, 0.62), transparent 28rem),
+    var(--herder-surface);
+}
+
+.livestock-search__heading {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.livestock-search__heading h2 {
+  margin: 0;
+  font-size: clamp(1.55rem, 3vw, 2.1rem);
+  letter-spacing: -0.04em;
+  line-height: 1.08;
+}
+
+.livestock-search__heading > div > p:last-child {
+  max-width: 44rem;
+  margin: 0.45rem 0 0;
+  color: var(--herder-muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.livestock-search-form {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  padding: 1rem;
+  margin-top: 1rem;
+  border: 1px solid #d3ddd5;
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.livestock-search-form > label,
+.last-seen-coordinates label {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.34rem;
+}
+
+.livestock-search-form label > span,
+.last-seen-coordinates legend {
+  color: #48564e;
+  font-size: 0.68rem;
+  font-weight: 820;
+}
+
+.livestock-search-form input,
+.livestock-search-form select,
+.livestock-search-form textarea {
+  width: 100%;
+  min-height: 2.8rem;
+  padding: 0.65rem 0.72rem;
+  border: 1px solid #c9d2cb;
+  border-radius: 0.68rem;
+  background: #fff;
+  color: var(--herder-ink);
+}
+
+.livestock-search-form textarea {
+  min-height: 5rem;
+  resize: vertical;
+}
+
+.livestock-search-form .wide-field {
+  grid-column: 1 / -1;
+}
+
+.last-seen-coordinates {
+  display: grid;
+  grid-column: span 2;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 0.6rem;
+  align-items: end;
+  padding: 0.75rem;
+  border: 1px solid #cdd8cf;
+  border-radius: 0.8rem;
+}
+
+.last-seen-coordinates legend {
+  padding-inline: 0.25rem;
+}
+
+.last-seen-coordinates button,
+.search-submit {
+  min-height: 2.8rem;
+  padding-inline: 0.85rem;
+  border-radius: 0.68rem;
+  cursor: pointer;
+  font-size: 0.7rem;
+  font-weight: 820;
+}
+
+.last-seen-coordinates button {
+  border: 1px solid #9db5a5;
+  background: #f1f7f2;
+  color: var(--herder-green);
+}
+
+.livestock-search-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.search-submit {
+  min-height: 3.1rem;
+  padding-inline: 1.2rem;
+  border: 0;
+  background: var(--herder-green);
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(23, 77, 59, 0.16);
+}
+
+.search-submit:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
+.livestock-search-actions span {
+  color: #367059;
+  font-size: 0.67rem;
+  font-weight: 740;
+}
+
+.livestock-search > .herder-error {
+  margin: 0.8rem 0 0;
+}
+
+.livestock-search-result {
+  display: grid;
+  gap: 0.85rem;
+  margin-top: 1rem;
+}
+
+.search-answer-card {
+  padding: 1rem;
+  border-radius: 1rem;
+  background: var(--herder-green-deep);
+  color: #fff;
+}
+
+.search-answer-card__label {
+  color: #a9cdbd;
+  font-size: 0.62rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.search-answer-card__main {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-top: 0.55rem;
+}
+
+.search-result-arrow {
+  display: grid;
+  width: 3rem;
+  height: 3rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  background: #f6dfaa;
+  color: var(--herder-green-deep);
+  font-size: 1.45rem;
+  font-weight: 900;
+}
+
+.search-answer-card h3 {
+  margin: 0;
+  font-size: clamp(1.25rem, 3vw, 1.7rem);
+  letter-spacing: -0.03em;
+}
+
+.search-answer-card__main p {
+  margin: 0.3rem 0 0;
+  color: #bfd7cc;
+  font-size: 0.7rem;
+}
+
+.search-caution {
+  padding-top: 0.7rem;
+  margin: 0.75rem 0 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  color: #f3dca8;
+  font-size: 0.68rem;
+  line-height: 1.5;
+}
+
+.search-history-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.search-history-metrics > div {
+  min-width: 0;
+  padding: 0.85rem;
+  border: 1px solid var(--herder-line);
+  border-radius: 0.8rem;
+  background: #fafbf8;
+}
+
+.search-history-metrics span,
+.search-history-metrics strong,
+.search-history-metrics small {
+  display: block;
+}
+
+.search-history-metrics span {
+  color: var(--herder-muted);
+  font-size: 0.62rem;
+  font-weight: 760;
+}
+
+.search-history-metrics strong {
+  margin-top: 0.3rem;
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.search-history-metrics small {
+  margin-top: 0.2rem;
+  color: #7c857f;
+  font-size: 0.58rem;
+  line-height: 1.35;
+}
+
+.search-result-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(18rem, 0.65fr);
+  gap: 0.85rem;
+  align-items: start;
+}
+
+.search-map-column {
+  min-width: 0;
+}
+
+.livestock-search-map {
+  position: relative;
+  min-height: 30rem;
+  overflow: hidden;
+  border: 1px solid #cbd5cd;
+  border-radius: 1rem;
+  background: #e7eee8;
+}
+
+.livestock-search-map__canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.livestock-search-map__hint {
+  position: absolute;
+  top: 0.65rem;
+  left: 50%;
+  z-index: 3;
+  width: max-content;
+  max-width: calc(100% - 6rem);
+  padding: 0.45rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(15, 54, 43, 0.9);
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 760;
+  text-align: center;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.livestock-search-map__status {
+  display: grid;
+  min-height: 20rem;
+  place-items: center;
+  padding: 1.5rem;
+  color: var(--herder-muted);
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.livestock-last-seen-marker {
+  width: 1.55rem;
+  height: 1.55rem;
+  border: 4px solid #fff;
+  border-radius: 50%;
+  background: #d65036;
+  box-shadow: 0 0 0 3px rgba(214, 80, 54, 0.32), 0 5px 14px rgba(0, 0, 0, 0.25);
+}
+
+.search-map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.75rem;
+  padding: 0.65rem;
+  margin-top: 0.5rem;
+  border-radius: 0.7rem;
+  background: #edf1ec;
+  font-size: 0.62rem;
+}
+
+.search-map-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+}
+
+.search-map-legend i {
+  width: 0.72rem;
+  height: 0.72rem;
+  border-radius: 0.18rem;
+}
+
+.search-map-legend .last-seen-dot {
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #d65036;
+  box-shadow: 0 0 0 1px #d65036;
+}
+
+.search-area-cards {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.search-area-cards article {
+  padding: 0.85rem;
+  border: 1px solid var(--herder-line);
+  border-left: 5px solid;
+  border-radius: 0.8rem;
+  background: #fff;
+}
+
+.search-area-cards article > div {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.search-area-cards article > div > span {
+  display: grid;
+  width: 1.6rem;
+  height: 1.6rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  background: #edf1ec;
+  font-size: 0.67rem;
+  font-weight: 850;
+}
+
+.search-area-cards h3 {
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+.search-area-cards article > strong {
+  display: block;
+  margin-top: 0.55rem;
+  color: #315545;
+  font-size: 0.67rem;
+}
+
+.search-area-cards article > p {
+  margin: 0.4rem 0 0;
+  color: var(--herder-muted);
+  font-size: 0.66rem;
+  line-height: 1.45;
+}
+
+.local-knowledge-note {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.8rem;
+  margin: 0;
+  border-radius: 0.75rem;
+  background: #fff4dc;
+  color: #70501b;
+  font-size: 0.68rem;
+  line-height: 1.45;
+}
+
+.search-source-note {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr auto;
+  gap: 0.8rem;
+  align-items: center;
+  padding: 0.8rem;
+  border-radius: 0.8rem;
+  background: #edf1ec;
+}
+
+.search-source-note > div > span,
+.search-source-note > div > strong {
+  display: block;
+}
+
+.search-source-note > div > span {
+  color: var(--herder-muted);
+  font-size: 0.57rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.search-source-note > div > strong {
+  margin-top: 0.22rem;
+  font-size: 0.66rem;
+}
+
+.search-source-note summary {
+  color: var(--herder-green);
+  cursor: pointer;
+  font-size: 0.65rem;
+  font-weight: 800;
+}
+
+.search-source-note ul {
+  padding-left: 1.15rem;
+  margin: 0.6rem 0 0;
+  color: var(--herder-muted);
+  font-size: 0.66rem;
+  line-height: 1.5;
+}
+
 .lost-livestock { display: grid; grid-template-columns: minmax(0, 1fr) minmax(20rem, 1.2fr); gap: 1rem; align-items: center; background: #fffdfa; }
 .lost-livestock__intro { display: flex; align-items: center; gap: 0.9rem; }
 .tool-icon { display: grid; width: 3rem; height: 3rem; flex: 0 0 auto; place-items: center; border-radius: 0.85rem; background: var(--herder-mint); color: var(--herder-green); font-size: 1.4rem; font-weight: 900; }
@@ -434,6 +895,8 @@
   .source-strip details { grid-column: 1 / -1; }
   .source-strip ul { right: auto; left: 0; }
   .lost-livestock { grid-template-columns: 1fr; }
+  .livestock-search-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .search-result-layout { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 48rem) {
@@ -461,7 +924,8 @@
   .alert-card,
   .pasture-section,
   .outlook-section,
-  .lost-livestock { padding: 1rem; border-radius: 1rem; }
+  .lost-livestock,
+  .livestock-search { padding: 1rem; border-radius: 1rem; }
   .temperature-row { padding-block: 1.15rem; }
   .temperature-row > strong { font-size: clamp(4.25rem, 23vw, 5.5rem); }
   .current-metrics,
@@ -485,6 +949,22 @@
   .source-strip { grid-template-columns: 1fr; gap: 0.7rem; padding: 0.85rem; border-radius: 1rem; }
   .source-strip details { grid-column: auto; }
   .source-strip ul { position: static; width: 100%; box-shadow: none; }
+  .device-location-saved { width: 100%; justify-content: center; margin: -0.25rem 0 0.8rem; border-radius: 0.7rem; text-align: center; }
+  .livestock-search__heading { align-items: flex-start; }
+  .livestock-search-form { grid-template-columns: 1fr; margin-inline: -0.25rem; padding: 0.8rem; }
+  .livestock-search-form input,
+  .livestock-search-form select,
+  .livestock-search-form textarea { min-height: 3rem; font-size: 1rem; }
+  .livestock-search-form .wide-field { grid-column: auto; }
+  .last-seen-coordinates { grid-column: auto; grid-template-columns: 1fr 1fr; }
+  .last-seen-coordinates button { grid-column: 1 / -1; min-height: 3rem; }
+  .livestock-search-actions { display: grid; }
+  .search-submit { width: 100%; min-height: 3.2rem; }
+  .search-history-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .livestock-search-map { min-height: 23rem; border-radius: 0.85rem; }
+  .livestock-search-map__hint { max-width: calc(100% - 4.5rem); border-radius: 0.65rem; }
+  .search-map-legend { align-items: flex-start; flex-direction: column; }
+  .search-source-note { grid-template-columns: 1fr; }
   .lost-livestock form { grid-template-columns: 1fr; }
   .lost-livestock .wide-field { grid-column: auto; }
   .draft-actions { display: grid; }
@@ -520,6 +1000,10 @@
   .temperature-row > strong { font-size: 4rem; }
   .coordinate-form { grid-template-columns: 1fr; }
   .coordinate-form button { grid-column: auto; }
+  .last-seen-coordinates { grid-template-columns: 1fr; }
+  .last-seen-coordinates button { grid-column: auto; }
+  .search-history-metrics { grid-template-columns: 1fr; }
+  .livestock-search-map { min-height: 20rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {

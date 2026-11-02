@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  analyzeLivestockWeather,
+  buildLivestockSearchAreas,
   chooseDirection,
   directionalCoordinates,
   isSevereWeatherCode,
@@ -87,4 +89,35 @@ test("WMO severe codes and six-hour temperature change are surfaced", () => {
   assert.equal(weatherCodeLabelMn(95), "Аянгатай");
   const drop = largestSixHourTemperatureDrop(Array.from({ length: 8 }, (_, index) => hour(index)));
   assert.equal(drop?.amountC, 6);
+});
+
+test("historical wind is converted from coming-from direction to a downwind search influence", () => {
+  const analysis = analyzeLivestockWeather([
+    hour(0, { windDirectionDegrees: 270, windGustMps: 12, snowfallCm: 1 }),
+    hour(1, { windDirectionDegrees: 270, windGustMps: 10, snowfallCm: 1 }),
+    hour(2, { windDirectionDegrees: 280, windGustMps: 8 }),
+  ]);
+  assert.ok(analysis);
+  assert.ok(analysis.weatherInfluenceBearingDegrees !== null);
+  assert.ok(analysis.weatherInfluenceBearingDegrees! > 80 && analysis.weatherInfluenceBearingDegrees! < 110);
+  assert.equal(analysis.totalSnowfallCm, 2);
+});
+
+test("livestock search areas use herder-entered distance and disclose weather versus reported direction", () => {
+  const analysis = analyzeLivestockWeather([
+    hour(0, { windDirectionDegrees: 0, windGustMps: 9 }),
+    hour(1, { windDirectionDegrees: 0, windGustMps: 11 }),
+  ]);
+  assert.ok(analysis);
+  const areas = buildLivestockSearchAreas(
+    { latitude: 47.9, longitude: 106.9 },
+    analysis,
+    18,
+    90,
+  );
+  assert.equal(areas[0]?.id, "reported");
+  assert.equal(areas[0]?.distanceKm, 18);
+  assert.ok(areas.some((area) => area.id === "weather"));
+  assert.ok(areas.every((area) => area.polygon.length > 4));
+  assert.equal(JSON.stringify(areas).includes("probability"), false);
 });

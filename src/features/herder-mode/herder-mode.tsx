@@ -1,11 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useMemo, useState } from "react";
+import {
+  FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 import { BrandMark } from "@/components/icons";
 
+import { DynamicLivestockSearchMap } from "./dynamic-livestock-search-map";
 import {
+  buildLivestockSearchAreas,
   chooseDirection,
   isSevereWeatherCode,
   largestSixHourTemperatureDrop,
@@ -13,12 +21,13 @@ import {
 } from "./forecast-utils";
 import type {
   HerderForecastPayload,
+  LivestockSearchPayload,
   MissingLivestockDraft,
   PasturePriority,
 } from "./types";
 
 const LOCATION_KEY = "tsag-uur-herder-location-v2";
-const LIVESTOCK_DRAFT_KEY = "tsag-uur-herder-lost-livestock-v2";
+const LIVESTOCK_DRAFT_KEY = "tsag-uur-herder-lost-livestock-v3";
 
 const EMPTY_DRAFT: MissingLivestockDraft = Object.freeze({
   species: "Хонь",
@@ -26,6 +35,10 @@ const EMPTY_DRAFT: MissingLivestockDraft = Object.freeze({
   lastSeenTime: "",
   lastSeenPlace: "",
   directionNote: "",
+  lastSeenLatitude: "",
+  lastSeenLongitude: "",
+  observedDirectionDegrees: "",
+  maxSearchKm: "15",
 });
 
 function formatTime(
@@ -38,6 +51,11 @@ function formatTime(
 
 function windDirectionMn(degrees: number): string {
   const labels = ["Х", "ХЗ", "З", "ӨЗ", "Ө", "ӨБ", "Б", "ХБ"];
+  return labels[Math.round((((degrees % 360) + 360) % 360) / 45) % 8]!;
+}
+
+function bearingLabelMn(degrees: number): string {
+  const labels = ["хойд", "зүүн хойд", "зүүн", "зүүн өмнөд", "өмнөд", "баруун өмнөд", "баруун", "баруун хойд"];
   return labels[Math.round((((degrees % 360) + 360) % 360) / 45) % 8]!;
 }
 
@@ -75,6 +93,22 @@ async function requestForecast(latitude: number, longitude: number): Promise<Her
   return body;
 }
 
+async function requestLivestockSearch(
+  latitude: number,
+  longitude: number,
+  lastSeenTime: string,
+): Promise<LivestockSearchPayload> {
+  const response = await fetch(
+    `/api/livestock-search?lat=${encodeURIComponent(latitude)}&lon=${encodeURIComponent(longitude)}&lastSeen=${encodeURIComponent(lastSeenTime)}`,
+    { cache: "no-store" },
+  );
+  const body = await response.json() as LivestockSearchPayload | { readonly error?: string };
+  if (!response.ok || !("analysis" in body)) {
+    throw new Error("error" in body && body.error ? body.error : "Өнгөрсөн цаг агаарын мэдээлэл татаж чадсангүй.");
+  }
+  return body;
+}
+
 export function HerderMode() {
   const [forecast, setForecast] = useState<HerderForecastPayload | null>(null);
   const [priority, setPriority] = useState<PasturePriority>("wind");
@@ -85,11 +119,26 @@ export function HerderMode() {
   const [longitude, setLongitude] = useState("");
   const [draft, setDraft] = useState<MissingLivestockDraft>(EMPTY_DRAFT);
   const [draftMessage, setDraftMessage] = useState("");
+  const [searchResult, setSearchResult] = useState<LivestockSearchPayload | null>(null);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState("");
 
   const bestDirection = useMemo(
     () => chooseDirection(forecast?.directions ?? [], priority),
     [forecast, priority],
   );
+  const searchAreas = useMemo(() => {
+    if (!searchResult) return [];
+    const observed = draft.observedDirectionDegrees.trim() === ""
+      ? null
+      : Number(draft.observedDirectionDegrees);
+    return buildLivestockSearchAreas(
+      searchResult.location,
+      searchResult.analysis,
+      Number(draft.maxSearchKm),
+      Number.isFinite(observed) ? observed : null,
+    );
+  }, [draft.maxSearchKm, draft.observedDirectionDegrees, searchResult]);
   const next24Hours = forecast?.hourly.slice(0, 24) ?? [];
   const severeHour = next24Hours.find((hour) => isSevereWeatherCode(hour.weatherCode)) ?? null;
   const temperatureDrop = largestSixHourTemperatureDrop(next24Hours);
@@ -100,7 +149,7 @@ export function HerderMode() {
     ? [...next24Hours].sort((left, right) => right.precipitationProbabilityPercent - left.precipitationProbabilityPercent)[0]!
     : null;
 
-  const loadForecast = async (nextLatitude: number, nextLongitude: number) => {
+  const loadForecast = useCallback(async (nextLatitude: number, nextLongitude: number) => {
     setLoading(true);
     setError("");
     try {
@@ -114,7 +163,27 @@ export function HerderMode() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const restoreTimer = window.setTimeout(() => {
+      try {
+        const storedLocation = JSON.parse(window.localStorage.getItem(LOCATION_KEY) ?? "null") as {
+          latitude?: unknown;
+          longitude?: unknown;
+        } | null;
+        if (typeof storedLocation?.latitude === "number" && typeof storedLocation.longitude === "number") {
+          void loadForecast(storedLocation.latitude, storedLocation.longitude);
+        }
+
+        const storedDraft = JSON.parse(window.localStorage.getItem(LIVESTOCK_DRAFT_KEY) ?? "null") as Partial<MissingLivestockDraft> | null;
+        if (storedDraft) setDraft({ ...EMPTY_DRAFT, ...storedDraft });
+      } catch {
+        // Corrupt browser-local state is ignored and replaced on the next save.
+      }
+    }, 0);
+    return () => window.clearTimeout(restoreTimer);
+  }, [loadForecast]);
 
   const useCurrentLocation = () => {
     setError("");
@@ -154,7 +223,7 @@ export function HerderMode() {
         longitude?: unknown;
       } | null;
       if (typeof stored?.latitude !== "number" || typeof stored.longitude !== "number") {
-        setError("Хадгалсан байршил олдсонгүй.");
+        setError("Энэ төхөөрөмж дээр хадгалсан байршил олдсонгүй.");
         return;
       }
       void loadForecast(stored.latitude, stored.longitude);
@@ -163,24 +232,81 @@ export function HerderMode() {
     }
   };
 
-  const saveDraft = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    window.localStorage.setItem(LIVESTOCK_DRAFT_KEY, JSON.stringify(draft));
-    setDraftMessage("Энэ утсан дээр хадгаллаа.");
+  const updateDraft = <Key extends keyof MissingLivestockDraft>(
+    key: Key,
+    value: MissingLivestockDraft[Key],
+  ) => {
+    const next = { ...draft, [key]: value };
+    setDraft(next);
+    window.localStorage.setItem(LIVESTOCK_DRAFT_KEY, JSON.stringify(next));
+    setDraftMessage("Энэ төхөөрөмжид автоматаар хадгалсан");
+    setSearchResult(null);
   };
 
-  const loadDraft = () => {
-    try {
-      const stored = JSON.parse(window.localStorage.getItem(LIVESTOCK_DRAFT_KEY) ?? "null") as MissingLivestockDraft | null;
-      if (!stored) {
-        setDraftMessage("Хадгалсан тэмдэглэл алга.");
-        return;
-      }
-      setDraft(stored);
-      setDraftMessage("Хадгалсан тэмдэглэлийг нээлээ.");
-    } catch {
-      setDraftMessage("Тэмдэглэлийг уншиж чадсангүй.");
+  const copyDeviceLocationToDraft = () => {
+    if (!forecast) {
+      setSearchError("Эхлээд төхөөрөмжийн байршлаа сонгоно уу.");
+      return;
     }
+    const next = {
+      ...draft,
+      lastSeenLatitude: forecast.location.latitude.toFixed(5),
+      lastSeenLongitude: forecast.location.longitude.toFixed(5),
+    };
+    setDraft(next);
+    window.localStorage.setItem(LIVESTOCK_DRAFT_KEY, JSON.stringify(next));
+    setDraftMessage("Төхөөрөмжийн байршлыг сүүлд харсан цэгт орууллаа");
+    setSearchResult(null);
+  };
+
+  const submitLivestockSearch = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const lastSeenLatitude = Number(draft.lastSeenLatitude);
+    const lastSeenLongitude = Number(draft.lastSeenLongitude);
+    const maxSearchKm = Number(draft.maxSearchKm);
+    const lastSeenMs = Date.parse(draft.lastSeenTime);
+    if (!Number.isFinite(lastSeenLatitude) || !Number.isFinite(lastSeenLongitude) ||
+      lastSeenLatitude < -90 || lastSeenLatitude > 90 || lastSeenLongitude < -180 || lastSeenLongitude > 180) {
+      setSearchError("Сүүлд харсан газрын өргөрөг, уртрагыг шалгана уу.");
+      return;
+    }
+    if (!Number.isFinite(lastSeenMs)) {
+      setSearchError("Сүүлд харсан огноо, цагийг оруулна уу.");
+      return;
+    }
+    if (!Number.isFinite(maxSearchKm) || maxSearchKm < 1 || maxSearchKm > 100) {
+      setSearchError("Хайх дээд хүрээг 1–100 км-ийн хооронд оруулна уу.");
+      return;
+    }
+
+    setSearchLoading(true);
+    setSearchError("");
+    window.localStorage.setItem(LIVESTOCK_DRAFT_KEY, JSON.stringify(draft));
+    try {
+      const result = await requestLivestockSearch(
+        lastSeenLatitude,
+        lastSeenLongitude,
+        new Date(lastSeenMs).toISOString(),
+      );
+      setSearchResult(result);
+      setDraftMessage("Тэмдэглэл ба сүүлд харсан цэг энэ төхөөрөмжид хадгалагдсан");
+    } catch (reason) {
+      setSearchError(reason instanceof Error ? reason.message : "Хайлтын мэдээлэл гаргаж чадсангүй.");
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const selectLastSeenOnMap = (coordinates: { latitude: number; longitude: number }) => {
+    const next = {
+      ...draft,
+      lastSeenLatitude: coordinates.latitude.toFixed(5),
+      lastSeenLongitude: coordinates.longitude.toFixed(5),
+    };
+    setDraft(next);
+    window.localStorage.setItem(LIVESTOCK_DRAFT_KEY, JSON.stringify(next));
+    setDraftMessage("Цэгийг шинэчиллээ — шинэ мэдээллээр дахин тооцоолно уу");
+    setSearchResult(null);
   };
 
   return (
@@ -194,8 +320,8 @@ export function HerderMode() {
         <nav aria-label="Малчин горимын цэс">
           <a href="#today">Өнөөдөр</a>
           <a href="#pasture">Бэлчээр</a>
-          <a href="#outlook">36 цаг</a>
           <a href="#livestock">Мал хайх</a>
+          <a href="#outlook">36 цаг</a>
         </nav>
         <Link className="back-to-map" href="/">Ерөнхий зураг</Link>
       </header>
@@ -205,7 +331,7 @@ export function HerderMode() {
           <div>
             <p className="herder-kicker">Өнөөдрийн ажилд</p>
             <h1>Хаашаа бэлчээх вэ?</h1>
-            <p>Таны байршлын бодит урьдчилсан төлөвийг 4 зүгт харьцуулна.</p>
+            <p>Энэ төхөөрөмжийн байршлыг хадгалж, бодит урьдчилсан төлөвийг 4 зүгт харьцуулна.</p>
           </div>
           <div className="location-actions">
             <button className="primary-action" type="button" onClick={useCurrentLocation} disabled={loading}>
@@ -214,7 +340,7 @@ export function HerderMode() {
             <button className="quiet-action" type="button" onClick={() => setManualOpen((value) => !value)}>
               Координат оруулах
             </button>
-            <button className="text-action" type="button" onClick={loadSavedLocation}>Өмнөх байршил</button>
+            <button className="text-action" type="button" onClick={loadSavedLocation}>Хадгалсан байршил</button>
           </div>
         </section>
 
@@ -225,6 +351,7 @@ export function HerderMode() {
             <button type="submit" disabled={loading}>Төлөв харах</button>
           </form>
         ) : null}
+        {forecast ? <p className="device-location-saved"><span aria-hidden="true">✓</span> Энэ утас/PC дээр хадгалсан · дараагийн нээлтээр автоматаар ашиглана</p> : null}
         {error ? <div className="herder-error" role="alert">{error}</div> : null}
 
         {!forecast ? (
@@ -232,8 +359,8 @@ export function HerderMode() {
             <div className="empty-weather__visual" aria-hidden="true"><span>⌖</span><i /></div>
             <div>
               <p className="herder-kicker">Зохиомол тоо харуулахгүй</p>
-              <h2>Байршлаа өгсний дараа төлөв гарна</h2>
-              <p>Салхи, тунадас, хүйтрэлтийн бодит forecast татагдаагүй үед зөвлөмж өгөхгүй.</p>
+              <h2>Байршлаа нэг удаа өгнө</h2>
+              <p>Утас эсвэл PC бүр байршлаа тусдаа хадгалж, дараагийн нээлтээр тухайн газрын мэдээллийг автоматаар харуулна.</p>
             </div>
           </section>
         ) : (
@@ -241,10 +368,7 @@ export function HerderMode() {
             <section className="current-grid" aria-labelledby="current-heading">
               <article className="current-card">
                 <div className="card-topline">
-                  <div>
-                    <span className="live-dot">Шинэ төлөв</span>
-                    <h2 id="current-heading">Одоо</h2>
-                  </div>
+                  <div><span className="live-dot">Шинэ төлөв</span><h2 id="current-heading">Одоо</h2></div>
                   <WeatherSymbol code={forecast.current.weatherCode} />
                 </div>
                 <div className="temperature-row">
@@ -269,10 +393,7 @@ export function HerderMode() {
                     <time dateTime={severeHour.time}>{formatTime(severeHour.time, forecast.timezone, { weekday: "short", hour: "2-digit", minute: "2-digit" })}</time>
                   </div>
                 ) : (
-                  <div className="alert-lead alert-lead--calm">
-                    <strong>Хүчтэй үзэгдлийн код илрээгүй</strong>
-                    <span>WMO кодын 24 цагийн төлөв</span>
-                  </div>
+                  <div className="alert-lead alert-lead--calm"><strong>Хүчтэй үзэгдлийн код илрээгүй</strong><span>WMO кодын 24 цагийн төлөв</span></div>
                 )}
                 <div className="change-metrics">
                   <div><span>6 цагийн хүйтрэлт</span><strong>{temperatureDrop ? `−${temperatureDrop.amountC.toFixed(1)}°` : "—"}</strong></div>
@@ -288,16 +409,11 @@ export function HerderMode() {
                 <div><p className="herder-kicker">12 км · дараагийн 12 цаг</p><h2 id="pasture-heading">Бэлчээрийн зүг харьцуулах</h2></div>
                 <fieldset className="priority-switch">
                   <legend>Юуг түрүүнд харах вэ?</legend>
-                  {([
-                    ["wind", "Салхи"],
-                    ["precipitation", "Тунадас"],
-                    ["cold", "Хүйтэн"],
-                  ] as const).map(([value, label]) => (
+                  {([['wind', 'Салхи'], ['precipitation', 'Тунадас'], ['cold', 'Хүйтэн']] as const).map(([value, label]) => (
                     <label key={value}><input type="radio" name="priority" value={value} checked={priority === value} onChange={() => setPriority(value)} /><span>{label}</span></label>
                   ))}
                 </fieldset>
               </div>
-
               {bestDirection ? (
                 <div className="direction-answer">
                   <span className="direction-arrow" style={{ transform: `rotate(${bestDirection.bearingDegrees}deg)` }} aria-hidden="true">↑</span>
@@ -305,7 +421,6 @@ export function HerderMode() {
                   <p>Өвс, ус, цас, замын нөхцөлийг нутгийн мэдлэгээр заавал нягтал.</p>
                 </div>
               ) : null}
-
               <div className="direction-grid">
                 {forecast.directions.map((direction) => (
                   <article key={direction.id} className={bestDirection?.id === direction.id ? "direction-card direction-card--best" : "direction-card"}>
@@ -323,7 +438,96 @@ export function HerderMode() {
                 ))}
               </div>
             </section>
+          </>
+        )}
 
+        <section className="livestock-search" id="livestock" aria-labelledby="livestock-heading">
+          <div className="livestock-search__heading">
+            <span className="tool-icon" aria-hidden="true">⌕</span>
+            <div>
+              <p className="herder-kicker">Өнгөрсөн 7 хоногийн цаг агаар</p>
+              <h2 id="livestock-heading">Алга болсон малын боломжит бүс</h2>
+              <p>Сүүлд харсан цэгээс хойших салхи, цас, бороог нэгтгэж хаанаас эхэлж шалгахыг харуулна.</p>
+            </div>
+          </div>
+
+          <form className="livestock-search-form" onSubmit={submitLivestockSearch}>
+            <label><span>Мал</span><select value={draft.species} onChange={(event) => updateDraft("species", event.target.value)}><option>Хонь</option><option>Ямаа</option><option>Адуу</option><option>Үхэр</option><option>Сарлаг</option><option>Тэмээ</option></select></label>
+            <label><span>Тоо</span><input type="number" min="1" inputMode="numeric" value={draft.count} onChange={(event) => updateDraft("count", event.target.value)} placeholder="34" /></label>
+            <label><span>Сүүлд харсан цаг</span><input type="datetime-local" value={draft.lastSeenTime} onChange={(event) => updateDraft("lastSeenTime", event.target.value)} required /></label>
+            <label><span>Газар нутгийн нэр</span><input value={draft.lastSeenPlace} onChange={(event) => updateDraft("lastSeenPlace", event.target.value)} placeholder="Худаг, өвөлжөө, уул…" /></label>
+            <fieldset className="last-seen-coordinates">
+              <legend>Сүүлд харсан цэг</legend>
+              <label><span>Өргөрөг</span><input inputMode="decimal" value={draft.lastSeenLatitude} onChange={(event) => updateDraft("lastSeenLatitude", event.target.value)} placeholder="47.9184" required /></label>
+              <label><span>Уртраг</span><input inputMode="decimal" value={draft.lastSeenLongitude} onChange={(event) => updateDraft("lastSeenLongitude", event.target.value)} placeholder="106.9177" required /></label>
+              <button type="button" onClick={copyDeviceLocationToDraft}>Хадгалсан байршлаас авах</button>
+            </fieldset>
+            <label><span>Сүүлд явсан зүг (°)</span><input type="number" min="0" max="359" inputMode="numeric" value={draft.observedDirectionDegrees} onChange={(event) => updateDraft("observedDirectionDegrees", event.target.value)} placeholder="Мэдэхгүй бол хоосон" /></label>
+            <label><span>Хайх дээд хүрээ (км)</span><input type="number" min="1" max="100" inputMode="decimal" value={draft.maxSearchKm} onChange={(event) => updateDraft("maxSearchKm", event.target.value)} required /></label>
+            <label className="wide-field"><span>Таних шинж, хашаа, жалга, нөмөр</span><textarea rows={3} value={draft.directionNote} onChange={(event) => updateDraft("directionNote", event.target.value)} placeholder="Нутгийн мэдлэгээр шалгах газруудаа бичнэ…" /></label>
+            <div className="livestock-search-actions wide-field">
+              <button className="search-submit" type="submit" disabled={searchLoading}>{searchLoading ? "Өнгөрсөн цаг агаарыг шинжилж байна…" : "Боломжит бүс гаргах"}</button>
+              {draftMessage ? <span role="status">{draftMessage}</span> : null}
+            </div>
+          </form>
+          {searchError ? <div className="herder-error" role="alert">{searchError}</div> : null}
+
+          {searchResult ? (
+            <div className="livestock-search-result">
+              <article className="search-answer-card">
+                <span className="search-answer-card__label">Цаг агаарын нөлөөгөөр</span>
+                <div className="search-answer-card__main">
+                  <span className="search-result-arrow" style={{ transform: `rotate(${searchResult.analysis.weatherInfluenceBearingDegrees ?? 0}deg)` }} aria-hidden="true">↑</span>
+                  <div>
+                    <h3>{searchResult.analysis.weatherInfluenceBearingDegrees === null ? "Нэг давамгай чиглэл гараагүй" : `${bearingLabelMn(searchResult.analysis.weatherInfluenceBearingDegrees)} зүгт байх боломжтой`}</h3>
+                    <p>{searchResult.analysis.hoursConsidered} цагийн архивлагдсан салхи, цас, бороонд үндэслэв · энэ чиглэлээс эхэлж шалга.</p>
+                  </div>
+                </div>
+                <p className="search-caution">Энэ нь байршлын магадлалын хувь биш. Сүүлд харсан мөр, нутгийн мэдлэг, хашаа-жалга-нөмрийг түрүүлж шалгана.</p>
+              </article>
+
+              <div className="search-history-metrics">
+                <div><span>Хамгийн их ширүүсэлт</span><strong>{searchResult.analysis.strongestWindMps.toFixed(1)} м/с</strong><small>{formatTime(searchResult.analysis.strongestWindTime, searchResult.timezone, { month: "short", day: "numeric", hour: "2-digit" })}</small></div>
+                <div><span>Нийт тунадас</span><strong>{searchResult.analysis.totalPrecipitationMm.toFixed(1)} мм</strong><small>Загварын цагийн нийлбэр</small></div>
+                <div><span>Нийт цас</span><strong>{searchResult.analysis.totalSnowfallCm.toFixed(1)} см</strong><small>Загварын цагийн нийлбэр</small></div>
+                <div><span>Хамгийн бага харагдац</span><strong>{searchResult.analysis.minimumVisibilityM >= 1000 ? `${(searchResult.analysis.minimumVisibilityM / 1000).toFixed(1)} км` : `${searchResult.analysis.minimumVisibilityM} м`}</strong><small>Цэгэн хэмжилт биш</small></div>
+              </div>
+
+              <div className="search-result-layout">
+                <div className="search-map-column">
+                  <DynamicLivestockSearchMap
+                    location={searchResult.location}
+                    areas={searchAreas}
+                    onSelectLocation={selectLastSeenOnMap}
+                  />
+                  <div className="search-map-legend">
+                    <span><i className="last-seen-dot" /> Сүүлд харсан</span>
+                    {searchAreas.map((area) => <span key={area.id}><i style={{ background: area.color }} /> {area.order}. {area.labelMn}</span>)}
+                  </div>
+                </div>
+                <div className="search-area-cards">
+                  {searchAreas.map((area) => (
+                    <article key={area.id} style={{ borderLeftColor: area.color }}>
+                      <div><span>{area.order}</span><h3>{area.labelMn}</h3></div>
+                      <strong>{area.bearingDegrees === null ? "Ойрын тойрог" : `${Math.round(area.bearingDegrees)}° · ${bearingLabelMn(area.bearingDegrees)} зүг`} · {area.distanceKm.toFixed(1)} км хүртэл</strong>
+                      <p>{area.reasonMn}</p>
+                    </article>
+                  ))}
+                  {draft.directionNote.trim() ? <p className="local-knowledge-note"><strong>Малчны тэмдэглэл</strong>{draft.directionNote}</p> : null}
+                </div>
+              </div>
+
+              <div className="search-source-note">
+                <div><span>Эх сурвалж</span><strong>{searchResult.source.name} · {searchResult.source.model}</strong></div>
+                <div><span>Хугацаа</span><strong>{formatTime(searchResult.analysis.startTime, searchResult.timezone, { month: "short", day: "numeric", hour: "2-digit" })} — {formatTime(searchResult.analysis.endTime, searchResult.timezone, { month: "short", day: "numeric", hour: "2-digit" })}</strong></div>
+                <details><summary>Хязгаарлалтыг харах</summary><ul>{searchResult.limitationsMn.map((item) => <li key={item}>{item}</li>)}</ul></details>
+              </div>
+            </div>
+          ) : null}
+        </section>
+
+        {forecast ? (
+          <>
             <section className="outlook-section" id="outlook" aria-labelledby="outlook-heading">
               <div className="section-heading section-heading--simple">
                 <div><p className="herder-kicker">3 цагийн алхам</p><h2 id="outlook-heading">36 цагийн төлөв</h2></div>
@@ -341,7 +545,6 @@ export function HerderMode() {
                 ))}
               </div>
             </section>
-
             <section className="source-strip" aria-label="Өгөгдлийн эх сурвалж">
               <div><span className="source-status">● Бодит forecast</span><strong>{forecast.source.name} · {forecast.source.model}</strong></div>
               <div><span>Байршил</span><strong>{forecast.location.latitude.toFixed(4)}, {forecast.location.longitude.toFixed(4)} · {Math.round(forecast.elevationM)} м</strong></div>
@@ -349,32 +552,14 @@ export function HerderMode() {
               <details><summary>Хязгаарлалтыг харах</summary><ul>{forecast.limitationsMn.map((item) => <li key={item}>{item}</li>)}</ul></details>
             </section>
           </>
-        )}
-
-        <section className="lost-livestock" id="livestock" aria-labelledby="livestock-heading">
-          <div className="lost-livestock__intro">
-            <span className="tool-icon" aria-hidden="true">⌕</span>
-            <div><p className="herder-kicker">Хэрэгтэй үед</p><h2 id="livestock-heading">Мал алга болсон тэмдэглэл</h2><p>Сүүлд харсан мэдээллээ утсан дээрээ хадгал.</p></div>
-          </div>
-          <details className="lost-livestock__details">
-            <summary>Тэмдэглэл нээх</summary>
-            <form onSubmit={saveDraft}>
-              <label><span>Мал</span><select value={draft.species} onChange={(event) => setDraft({ ...draft, species: event.target.value })}><option>Хонь</option><option>Ямаа</option><option>Адуу</option><option>Үхэр</option><option>Сарлаг</option><option>Тэмээ</option></select></label>
-              <label><span>Тоо</span><input type="number" min="1" inputMode="numeric" value={draft.count} onChange={(event) => setDraft({ ...draft, count: event.target.value })} /></label>
-              <label><span>Сүүлд харсан цаг</span><input type="datetime-local" value={draft.lastSeenTime} onChange={(event) => setDraft({ ...draft, lastSeenTime: event.target.value })} /></label>
-              <label><span>Сүүлд харсан газар</span><input value={draft.lastSeenPlace} onChange={(event) => setDraft({ ...draft, lastSeenPlace: event.target.value })} placeholder="Уул, худаг, өвөлжөө…" /></label>
-              <label className="wide-field"><span>Явсан зүг, таних шинж</span><textarea rows={3} value={draft.directionNote} onChange={(event) => setDraft({ ...draft, directionNote: event.target.value })} /></label>
-              <div className="draft-actions wide-field"><button type="submit">Энэ утсанд хадгалах</button><button type="button" onClick={loadDraft}>Хадгалснаа нээх</button>{draftMessage ? <span role="status">{draftMessage}</span> : null}</div>
-            </form>
-          </details>
-        </section>
+        ) : null}
       </main>
 
       <nav className="herder-mobile-nav" aria-label="Хурдан цэс">
         <a href="#today"><span aria-hidden="true">☀</span>Өнөөдөр</a>
         <a href="#pasture"><span aria-hidden="true">↑</span>Бэлчээр</a>
-        <a href="#outlook"><span aria-hidden="true">≋</span>Төлөв</a>
         <a href="#livestock"><span aria-hidden="true">⌕</span>Мал хайх</a>
+        <a href="#outlook"><span aria-hidden="true">≋</span>Төлөв</a>
       </nav>
     </div>
   );

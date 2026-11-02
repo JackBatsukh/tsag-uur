@@ -21,6 +21,7 @@ CDN / edge caching (optional free tier)
    |---- Next.js App Router: server components and small client islands
    |---- WeatherDataProvider: synthetic explorer source now, processed WRF source later
    |---- /api/herder-forecast: validated coordinates -> Open-Meteo live forecast adapter
+   |---- /api/livestock-search: last-seen point/time -> recent archived weather analysis
    |---- MapLibre GL JS (conditional dynamic import; omitted in Lite Mode)
    |---- Canvas weather raster + zoom-aware U/V wind and local condition particles
    |---- cached forecast raster/vector tiles (future)
@@ -124,10 +125,13 @@ User-approved browser location or entered coordinates
   -> center point plus north/east/south/west points 12 km away
   -> transparent 12-hour comparison by user-selected priority
   -> current conditions, 24-hour change summary, 36-hour timeline
-  -> optional missing-livestock note (browser storage only)
+  -> missing-livestock last-seen point/time (browser storage only)
+  -> up to 168 hours of recent archived model weather
+  -> explainable downwind influence + user-sized search sectors
+  -> MapLibre search map and editable last-seen point
 ```
 
-The comparison never generates a confidence score or official warning. It ranks one raw weather metric selected by the herder: lowest forecast gust, lowest precipitation total, or highest minimum apparent temperature. It does not measure grass, water, snow depth, ice, terrain, road access, or carrying capacity. See `HERDER_MODE_RESEARCH.md`.
+The pasture comparison never generates a confidence score or official warning. It ranks one raw weather metric selected by the herder: lowest forecast gust, lowest precipitation total, or highest minimum apparent temperature. The missing-livestock workflow converts each archived hourly wind from its meteorological “from” direction to downwind flow, weights the circular mean by gust and precipitation/snow context, and displays reported, weather-influenced, nearby, and alternative search areas. Search distance is entered by the herder; it is not inferred as animal travel distance. Neither workflow measures grass, water, snow depth, ice, terrain, road access, or carrying capacity. See `HERDER_MODE_RESEARCH.md`.
 
 Future provider adapters should expose:
 
@@ -207,9 +211,10 @@ All chosen core frameworks/libraries are free/open source. Running infrastructur
 - **ADR-005:** Keep map rendering behind a provider boundary; synthetic and future WRF sources must use the same typed UI contract.
 - **ADR-006:** Lite Mode must remain useful without loading MapLibre or requesting third-party tiles.
 - **ADR-007:** Public OpenStreetMap Standard tiles are a development/demo base map, not the production scaling strategy.
-- **ADR-008:** Missing-livestock notes remain local-only until an explicit, reviewed sharing design exists; sensitive coordinates must not enter analytics or logs.
+- **ADR-008:** Device location and missing-livestock notes remain browser-local until an explicit, reviewed sharing design exists; sensitive coordinates must not enter analytics or logs. Each browser/device restores only its own saved state.
 - **ADR-009:** Herder direction guidance compares attributable forecast metrics at four points and never claims pasture quality, animal movement, route safety, or probability.
 - **ADR-010:** Herder Mode shows no fabricated fallback weather. When the live provider is unavailable, it presents an explicit empty/error state.
 - **ADR-011:** Farmer field coordinates, configuration, and notes remain browser-local until a reviewed privacy and consent design exists.
 - **ADR-012:** Agricultural advisory results must separate weather-suitable windows from agronomic readiness; FAO-56 water-balance outputs remain unavailable until required inputs and validation exist.
 - **ADR-013:** Open-Meteo is a temporary, zero-account Herder Mode forecast adapter. It is not an official Mongolian warning feed and can later be replaced behind the route boundary by validated university WRF products.
+- **ADR-014:** Missing-livestock areas are ordered inspection hypotheses, not probability surfaces. Weather influence uses recent archived model data; reported direction and search distance remain explicit herder inputs.

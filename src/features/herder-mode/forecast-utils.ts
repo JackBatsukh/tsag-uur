@@ -1,6 +1,8 @@
 import type {
   HerderCoordinates,
   HerderHourlyWeather,
+  LivestockSearchArea,
+  LivestockWeatherAnalysis,
   PastureDirectionId,
   PastureDirectionSummary,
   PasturePriority,
@@ -135,4 +137,175 @@ export function largestSixHourTemperatureDrop(
     if (drop > result.amountC) result = { amountC: round(drop), time: hours[index]!.time };
   }
   return result;
+}
+
+function normalizeDegrees(value: number): number {
+  return ((value % 360) + 360) % 360;
+}
+
+function destinationPoint(
+  origin: HerderCoordinates,
+  bearingDegrees: number,
+  distanceKm: number,
+): [number, number] {
+  const earthRadiusKm = 6_371.0088;
+  const angularDistance = distanceKm / earthRadiusKm;
+  const bearing = (bearingDegrees * Math.PI) / 180;
+  const latitude = (origin.latitude * Math.PI) / 180;
+  const longitude = (origin.longitude * Math.PI) / 180;
+  const destinationLatitude = Math.asin(
+    Math.sin(latitude) * Math.cos(angularDistance) +
+      Math.cos(latitude) * Math.sin(angularDistance) * Math.cos(bearing),
+  );
+  const destinationLongitude = longitude + Math.atan2(
+    Math.sin(bearing) * Math.sin(angularDistance) * Math.cos(latitude),
+    Math.cos(angularDistance) - Math.sin(latitude) * Math.sin(destinationLatitude),
+  );
+  return [
+    (destinationLongitude * 180) / Math.PI,
+    (destinationLatitude * 180) / Math.PI,
+  ];
+}
+
+function sectorPolygon(
+  origin: HerderCoordinates,
+  bearingDegrees: number,
+  distanceKm: number,
+  widthDegrees: number,
+): readonly [number, number][] {
+  const points: [number, number][] = [[origin.longitude, origin.latitude]];
+  for (let index = 0; index <= 16; index += 1) {
+    const bearing = bearingDegrees - widthDegrees / 2 + (widthDegrees * index) / 16;
+    points.push(destinationPoint(origin, bearing, distanceKm));
+  }
+  points.push([origin.longitude, origin.latitude]);
+  return Object.freeze(points);
+}
+
+function circlePolygon(
+  origin: HerderCoordinates,
+  radiusKm: number,
+): readonly [number, number][] {
+  const points: [number, number][] = [];
+  for (let bearing = 0; bearing <= 360; bearing += 15) {
+    points.push(destinationPoint(origin, bearing, radiusKm));
+  }
+  return Object.freeze(points);
+}
+
+export function analyzeLivestockWeather(
+  hours: readonly HerderHourlyWeather[],
+): LivestockWeatherAnalysis | null {
+  if (hours.length === 0) return null;
+  let vectorX = 0;
+  let vectorY = 0;
+  let totalWeight = 0;
+  let strongest = hours[0]!;
+  let totalPrecipitationMm = 0;
+  let totalSnowfallCm = 0;
+  let minimumVisibilityM = Number.POSITIVE_INFINITY;
+  const significantWeatherCodes = new Set<number>();
+
+  for (const hour of hours) {
+    if (hour.windGustMps > strongest.windGustMps) strongest = hour;
+    totalPrecipitationMm += hour.precipitationMm;
+    totalSnowfallCm += hour.snowfallCm;
+    minimumVisibilityM = Math.min(minimumVisibilityM, hour.visibilityM);
+    if (isSevereWeatherCode(hour.weatherCode) || [45, 48, 71, 73, 77, 85].includes(hour.weatherCode)) {
+      significantWeatherCodes.add(hour.weatherCode);
+    }
+
+    const downwindBearing = normalizeDegrees(hour.windDirectionDegrees + 180);
+    const radians = (downwindBearing * Math.PI) / 180;
+    const weatherWeight = Math.max(0.5, hour.windGustMps) *
+      (1 + Math.min(1, hour.precipitationMm / 5) + Math.min(1, hour.snowfallCm / 2));
+    vectorX += Math.sin(radians) * weatherWeight;
+    vectorY += Math.cos(radians) * weatherWeight;
+    totalWeight += weatherWeight;
+  }
+
+  const magnitude = Math.hypot(vectorX, vectorY);
+  const bearing = totalWeight === 0 || magnitude / totalWeight < 0.08
+    ? null
+    : normalizeDegrees((Math.atan2(vectorX, vectorY) * 180) / Math.PI);
+  const notesMn: string[] = [];
+  if (totalSnowfallCm > 0) notesMn.push(`Сонгосон хугацаанд ${round(totalSnowfallCm)} см загварын цасны нийлбэр байна.`);
+  if (totalPrecipitationMm > 0) notesMn.push(`Нийт ${round(totalPrecipitationMm)} мм тунадасны загварын утга байна.`);
+  if (bearing !== null) notesMn.push(`Салхины цаг бүрийн уруудах нөлөөний нийлбэр ${Math.round(bearing)}° чиглэлтэй.`);
+
+  return Object.freeze({
+    startTime: hours[0]!.time,
+    endTime: hours[hours.length - 1]!.time,
+    hoursConsidered: hours.length,
+    weatherInfluenceBearingDegrees: bearing,
+    strongestWindMps: round(strongest.windGustMps),
+    strongestWindTime: strongest.time,
+    totalPrecipitationMm: round(totalPrecipitationMm),
+    totalSnowfallCm: round(totalSnowfallCm),
+    minimumVisibilityM: Number.isFinite(minimumVisibilityM) ? Math.round(minimumVisibilityM) : 0,
+    significantWeatherCodes: Object.freeze([...significantWeatherCodes]),
+    notesMn: Object.freeze(notesMn),
+  });
+}
+
+export function buildLivestockSearchAreas(
+  origin: HerderCoordinates,
+  analysis: LivestockWeatherAnalysis,
+  maxSearchKm: number,
+  observedDirectionDegrees: number | null,
+): readonly LivestockSearchArea[] {
+  const distanceKm = Math.min(100, Math.max(1, maxSearchKm));
+  const areas: LivestockSearchArea[] = [];
+  let order = 1;
+
+  if (observedDirectionDegrees !== null && Number.isFinite(observedDirectionDegrees)) {
+    const bearing = normalizeDegrees(observedDirectionDegrees);
+    areas.push(Object.freeze({
+      id: "reported",
+      order: order++,
+      labelMn: "Малчны харсан зүг",
+      color: "#e49b28",
+      bearingDegrees: bearing,
+      distanceKm,
+      polygon: sectorPolygon(origin, bearing, distanceKm, 46),
+      reasonMn: `Сүүлд ажигласан ${Math.round(bearing)}° чиглэлийг эхэлж шалгана.`,
+    }));
+  }
+
+  if (analysis.weatherInfluenceBearingDegrees !== null) {
+    const bearing = analysis.weatherInfluenceBearingDegrees;
+    areas.push(Object.freeze({
+      id: "weather",
+      order: order++,
+      labelMn: "Шуурганд уруудсан байж болох",
+      color: "#2772b8",
+      bearingDegrees: bearing,
+      distanceKm,
+      polygon: sectorPolygon(origin, bearing, distanceKm, 66),
+      reasonMn: `${analysis.hoursConsidered} цагийн салхины уруудах нөлөөгөөр ${Math.round(bearing)}° чиглэлийг давхар шалгана.`,
+    }));
+    areas.push(Object.freeze({
+      id: "alternative",
+      order: order++,
+      labelMn: "Хөндлөн хувилбар",
+      color: "#6f7f75",
+      bearingDegrees: normalizeDegrees(bearing + 70),
+      distanceKm: round(distanceKm * 0.7),
+      polygon: sectorPolygon(origin, normalizeDegrees(bearing + 70), distanceKm * 0.7, 42),
+      reasonMn: "Салхи өөрчлөгдсөн эсвэл мал уруудаагүй тохиолдлын нөөц чиглэл.",
+    }));
+  }
+
+  areas.push(Object.freeze({
+    id: "nearby",
+    order: order++,
+    labelMn: "Сүүлд харсан газрын ойр",
+    color: "#2f835d",
+    bearingDegrees: null,
+    distanceKm: round(Math.min(3, Math.max(0.8, distanceKm * 0.2))),
+    polygon: circlePolygon(origin, Math.min(3, Math.max(0.8, distanceKm * 0.2))),
+    reasonMn: "Мөр, хашаа, жалга, нөмөр болон айл саахалтын мэдээллийг эндээс эхэлж нягтална.",
+  }));
+
+  return Object.freeze(areas.sort((left, right) => left.order - right.order));
 }

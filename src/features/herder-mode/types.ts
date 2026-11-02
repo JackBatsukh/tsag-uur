@@ -61,4 +61,47 @@ export interface MissingLivestockDraft {
   readonly lastSeenTime: string;
   readonly lastSeenPlace: string;
   readonly directionNote: string;
+  readonly lastSeenLatitude: string;
+  readonly lastSeenLongitude: string;
+  readonly observedDirectionDegrees: string;
+  readonly maxSearchKm: string;
+}
+
+export interface LivestockWeatherAnalysis {
+  readonly startTime: string;
+  readonly endTime: string;
+  readonly hoursConsidered: number;
+  readonly weatherInfluenceBearingDegrees: number | null;
+  readonly strongestWindMps: number;
+  readonly strongestWindTime: string;
+  readonly totalPrecipitationMm: number;
+  readonly totalSnowfallCm: number;
+  readonly minimumVisibilityM: number;
+  readonly significantWeatherCodes: readonly number[];
+  readonly notesMn: readonly string[];
+}
+
+export interface LivestockSearchArea {
+  readonly id: "reported" | "weather" | "nearby" | "alternative";
+  readonly order: number;
+  readonly labelMn: string;
+  readonly color: string;
+  readonly bearingDegrees: number | null;
+  readonly distanceKm: number;
+  readonly polygon: readonly [number, number][];
+  readonly reasonMn: string;
+}
+
+export interface LivestockSearchPayload {
+  readonly fetchedAt: string;
+  readonly timezone: string;
+  readonly location: HerderCoordinates;
+  readonly hourly: readonly HerderHourlyWeather[];
+  readonly analysis: LivestockWeatherAnalysis;
+  readonly source: {
+    readonly name: string;
+    readonly url: string;
+    readonly model: string;
+  };
+  readonly limitationsMn: readonly string[];
 }
