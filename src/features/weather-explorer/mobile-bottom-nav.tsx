@@ -29,7 +29,9 @@ export function MobileBottomNav({
   return (
     <nav className="mobile-bottom-nav" aria-label="Газрын зургийн үндсэн үйлдэл">
       <button type="button" className="mobile-bottom-nav__item" aria-current="page">
-        <MapIcon />
+        <span className="mobile-bottom-nav__icon" aria-hidden="true">
+          <MapIcon />
+        </span>
         <span>Зураг</span>
       </button>
       <button
@@ -39,7 +41,9 @@ export function MobileBottomNav({
         aria-controls="explorer-sidebar"
         onClick={onLayersToggle}
       >
-        <LayersIcon />
+        <span className="mobile-bottom-nav__icon" aria-hidden="true">
+          <LayersIcon />
+        </span>
         <span>Давхарга</span>
       </button>
       <button
@@ -49,7 +53,9 @@ export function MobileBottomNav({
         aria-controls="selected-weather-content"
         onClick={onPointPanelToggle}
       >
-        <MapPinIcon />
+        <span className="mobile-bottom-nav__icon" aria-hidden="true">
+          <MapPinIcon />
+        </span>
         <span>Сонгосон цэг</span>
       </button>
       <button
@@ -58,7 +64,9 @@ export function MobileBottomNav({
         aria-pressed={liteMode}
         onClick={onLiteModeToggle}
       >
-        <LiteIcon />
+        <span className="mobile-bottom-nav__icon" aria-hidden="true">
+          <LiteIcon />
+        </span>
         <span>Lite</span>
       </button>
     </nav>

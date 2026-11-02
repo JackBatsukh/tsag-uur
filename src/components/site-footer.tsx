@@ -11,11 +11,11 @@ export function SiteFooter() {
             <span>Монголын цаг агаарын мэдээллийг илүү ойлгомжтой болгоно.</span>
           </div>
         </div>
-        <p>
+        {/* <p>
           Phase 1 · UI prototype
           <span aria-hidden="true">•</span>
           Бүх утга зохиомол жишээ
-        </p>
+        </p> */}
       </div>
     </footer>
   );

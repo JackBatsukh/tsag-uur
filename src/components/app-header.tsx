@@ -33,10 +33,10 @@ export function AppHeader() {
           </ul>
         </nav>
 
-        <div className="environment-badge" title="Энэ хувилбар бодит өгөгдөл ашиглахгүй">
+        {/* <div className="environment-badge" title="Энэ хувилбар бодит өгөгдөл ашиглахгүй">
           <span className="environment-badge__dot" aria-hidden="true" />
           Demo орчин
-        </div>
+        </div> */}
       </div>
     </header>
   );

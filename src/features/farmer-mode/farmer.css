@@ -339,17 +339,38 @@
     min-width: 0;
     min-height: 3.2rem;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     flex-direction: column;
-    gap: 0.1rem;
-    border-radius: 0.75rem;
+    gap: 0.12rem;
+    padding-top: 0.16rem;
+    border-radius: 0.85rem;
     color: var(--farmer-muted);
     font-size: 0.66rem;
-    font-weight: 800;
+    font-weight: 720;
     line-height: 1.1;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    transition: color 280ms cubic-bezier(0.22, 1, 0.36, 1);
   }
-  .farmer-mobile-nav a:active { background: var(--farmer-green-soft); color: var(--farmer-green); }
-  .farmer-mobile-nav span { color: var(--farmer-green); font-size: 1rem; font-weight: 900; }
+  .farmer-mobile-nav a:active { background: transparent; color: var(--farmer-green); }
+  .farmer-mobile-nav span {
+    display: grid;
+    width: 2.85rem;
+    height: 1.72rem;
+    place-items: center;
+    border-radius: 999px;
+    color: var(--farmer-green);
+    font-size: 1rem;
+    font-weight: 900;
+    transform: scale(0.96);
+    transition:
+      background-color 280ms cubic-bezier(0.22, 1, 0.36, 1),
+      transform 420ms cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  .farmer-mobile-nav a:active span {
+    background: var(--farmer-green-soft);
+    transform: scale(0.86);
+  }
 }
 
 @media (max-width: 34rem) {
