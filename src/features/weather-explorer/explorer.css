@@ -881,7 +881,7 @@
 }
 
 .point-panel__location p {
-  color: #718691;
+  color: #536c78;
   font-size: 0.55rem;
   font-weight: 720;
   letter-spacing: 0.05em;
@@ -1008,7 +1008,7 @@
 .point-metrics > div:nth-child(2n) { border-right: 0; }
 
 .point-metrics dt {
-  color: #788b95;
+  color: #5b707b;
   font-size: 0.55rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -1024,7 +1024,7 @@
 .point-metrics span {
   display: block;
   margin-top: 0.05rem;
-  color: #84959e;
+  color: #5f737c;
   font-size: 0.52rem;
 }
 
@@ -1117,7 +1117,7 @@
 }
 
 .timeline-now span {
-  color: #7a8e98;
+  color: #5b707b;
   font-size: 0.55rem;
   font-weight: 760;
   letter-spacing: 0.06em;
@@ -1131,7 +1131,7 @@
 
 .timeline-now small {
   margin-top: 0.08rem;
-  color: #9a762d;
+  color: #78540d;
   font-size: 0.5rem;
   font-weight: 700;
 }
@@ -1339,10 +1339,11 @@
 
 .lite-map__icon svg { width: 1.5rem; height: 1.5rem; }
 .lite-map__content h1 { margin: 0; font-size: clamp(1.6rem, 4vw, 2.5rem); letter-spacing: -0.045em; }
-.lite-map__content > p:not(.eyebrow) { max-width: 27rem; margin: 0.85rem 0 0; color: #657b86; font-size: 0.82rem; line-height: 1.65; }
+.lite-map__content > p:not(.eyebrow) { max-width: 27rem; margin: 0.85rem 0 0; color: #526b77; font-size: 0.82rem; line-height: 1.65; }
+.lite-map__content .lite-map__freshness { font-size: 0.68rem; font-variant-numeric: tabular-nums; }
 .lite-map__selection { display: flex; gap: 0.65rem; align-items: center; margin-top: 1.4rem; padding: 0.75rem; border: 1px solid #d2e0e6; border-radius: 0.75rem; background: #fff; color: #405d6b; font-size: 0.72rem; font-variant-numeric: tabular-nums; }
 .lite-map__selection svg { width: 1.1rem; height: 1.1rem; color: #1680b4; }
-.lite-map__selection small { display: block; margin-top: 0.1rem; color: #84969f; font-size: 0.56rem; }
+.lite-map__selection small { display: block; margin-top: 0.1rem; color: #5f737d; font-size: 0.56rem; }
 .lite-map__content button { min-height: 2.75rem; padding-inline: 1rem; margin-top: 1.4rem; border: 0; border-radius: 0.7rem; background: #116f9e; color: #fff; cursor: pointer; font-size: 0.72rem; font-weight: 760; }
 
 .map-screenreader-status {
@@ -1609,7 +1610,7 @@
     border: 0;
     border-radius: 0;
     background: transparent;
-    color: #8e8e93;
+    color: #626b70;
     cursor: pointer;
     font: inherit;
     -webkit-tap-highlight-color: transparent;
@@ -1688,6 +1689,37 @@
 
   .mobile-bottom-nav__item:active svg {
     transform: scale(0.9);
+  }
+
+  .lite-map__content > p:not(.eyebrow),
+  .lite-map__selection,
+  .lite-map__selection small,
+  .sidebar-data-note p,
+  .sidebar-helper,
+  .sidebar-footer-actions a,
+  .sidebar-footer-actions button,
+  .sidebar-section__label,
+  .sidebar-heading p,
+  .layer-option small,
+  .toggle-row strong,
+  .toggle-row small,
+  .mode-grid button,
+  .mode-grid a,
+  .synthetic-warning,
+  .synthetic-pill,
+  .point-panel__location p,
+  .point-metrics dt,
+  .point-metrics span,
+  .point-metadata summary,
+  .point-metadata dt,
+  .point-metadata dd,
+  .active-field-row,
+  .active-field-row strong,
+  .timeline-now span,
+  .timeline-now strong,
+  .timeline-now small,
+  .mobile-bottom-nav__item > span:not(.mobile-bottom-nav__icon) {
+    font-size: 0.75rem;
   }
 
   .explorer-loading__header { height: 7rem; }

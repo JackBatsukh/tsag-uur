@@ -44,7 +44,10 @@ function getLiteModeSnapshot(): boolean {
     (navigator as Navigator & { connection?: { saveData?: boolean } }).connection
       ?.saveData,
   );
-  return savedPreference === null ? saveData : savedPreference === "true";
+  const compactViewport = window.matchMedia("(max-width: 48rem)").matches;
+  return savedPreference === null
+    ? saveData || compactViewport
+    : savedPreference === "true";
 }
 
 export function WeatherExplorer() {
@@ -135,11 +138,11 @@ export function WeatherExplorer() {
         onSelectCoordinates={handleCoordinateSelection}
       />
 
-      {/* <div className="synthetic-warning" role="note">
+      <div className="synthetic-warning" role="note">
         <strong>DEMO</strong>
         <span>Зохиомол өгөгдөл — бодит цаг агаарын мэдээ биш</span>
         <span className="synthetic-warning__meta">Шинжлэх ухаанаар баталгаажаагүй</span>
-      </div> */}
+      </div>
 
       <div className="explorer-stage">
         <button
@@ -185,6 +188,7 @@ export function WeatherExplorer() {
             <LiteMap
               sample={selectedSample}
               activeLayer={activeLayerDefinition}
+              generatedAt={provider.metadata.generatedAt}
               onEnableFullMap={() => updateLiteMode(false)}
             />
           )}

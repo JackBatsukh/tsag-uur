@@ -6,6 +6,7 @@ import type {
   Map as MapLibreMap,
   Marker as MapLibreMarker,
 } from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
 
 import { createBasemapStyle } from "@/features/map/basemap-config";
 

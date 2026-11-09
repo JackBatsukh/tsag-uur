@@ -9,6 +9,7 @@ interface LiteMapProps {
   readonly sample: WeatherSample | null;
   readonly activeLayer: WeatherLayerDefinition;
   readonly initializing?: boolean;
+  readonly generatedAt: string;
   readonly onEnableFullMap: () => void;
 }
 
@@ -16,6 +17,7 @@ export function LiteMap({
   sample,
   activeLayer,
   initializing = false,
+  generatedAt,
   onEnableFullMap,
 }: LiteMapProps) {
   return (
@@ -40,6 +42,12 @@ export function LiteMap({
         </h1>
         <p>
           MapLibre, OpenStreetMap tile болон wind animation ачаалаагүй. Текстэн demo мэдээлэл хэвийн ажиллана.
+        </p>
+        <p className="lite-map__freshness">
+          Demo snapshot үүсгэсэн: <time dateTime={generatedAt}>{generatedAt}</time>
+          {sample ? (
+            <> · Хүчинтэй: <time dateTime={sample.validTime}>{sample.validTime}</time></>
+          ) : null}
         </p>
         {sample ? (
           <div className="lite-map__selection">

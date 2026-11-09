@@ -29,7 +29,7 @@ npm install
 npm run dev
 ```
 
-Дараа нь [http://localhost:3000](http://localhost:3000)-ийг нээнэ. WebGL2 эсвэл тогтвортой сүлжээ байхгүй үед UI-н **Lite** товчоор зураглалгүй fallback горим ашиглаж болно.
+Дараа нь [http://localhost:3000](http://localhost:3000)-ийг нээнэ. Анхны гар утасны нээлт болон data-saver холболт Lite Mode-оор эхэлнэ; хэрэглэгч интерактив зургийг товчоор ачаалж болно. Desktop дээр интерактив зураг анхдагчаар нээгдэнэ.
 
 ## Чухал замууд
 
@@ -46,7 +46,11 @@ npm run lint
 npm run typecheck
 npm test
 npm run build
+npm run perf:lifecycle
+npm run perf:lighthouse
 ```
+
+Performance шалгалтууд нь эхлээд production build шаарддаг. `perf:lifecycle` нь throttled mobile Lite Mode, service worker, browser exception, tile request-ийг шалгана. `perf:lighthouse` нь тайлангаа `.next/performance/` дотор үүсгэж, LCP/CLS/TBT болон Lighthouse ангиллын budget-ийг мөрдүүлнэ.
 
 ## Өгөгдөл ба зураглал
 

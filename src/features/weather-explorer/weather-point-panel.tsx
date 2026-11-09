@@ -89,25 +89,33 @@ export function WeatherPointPanel({
       <dl className="point-metrics">
         <div>
           <dt>Салхи</dt>
-          <dd>{oneDecimal.format(sample.windSpeedMps)} м/с</dd>
-          <span>
-            {WIND_DIRECTION_LABELS_MN[sample.windDirectionCardinal]} · {Math.round(sample.windDirectionDegrees)}°
-          </span>
+          <dd>
+            {oneDecimal.format(sample.windSpeedMps)} м/с
+            <span>
+              {WIND_DIRECTION_LABELS_MN[sample.windDirectionCardinal]} · {Math.round(sample.windDirectionDegrees)}°
+            </span>
+          </dd>
         </div>
         <div>
           <dt>Хур тунадас</dt>
-          <dd>{oneDecimal.format(sample.hourlyPrecipitationMm)} мм/ц</dd>
-          <span>Зохиомол утга</span>
+          <dd>
+            {oneDecimal.format(sample.hourlyPrecipitationMm)} мм/ц
+            <span>Зохиомол утга</span>
+          </dd>
         </div>
         <div>
           <dt>Чийгшил</dt>
-          <dd>{Math.round(sample.relativeHumidityPercent)}%</dd>
-          <span>Харьцангуй</span>
+          <dd>
+            {Math.round(sample.relativeHumidityPercent)}%
+            <span>Харьцангуй</span>
+          </dd>
         </div>
         <div>
           <dt>Даралт</dt>
-          <dd>{Math.round(sample.pressureHpa)} гПа</dd>
-          <span>Далайн түвшин</span>
+          <dd>
+            {Math.round(sample.pressureHpa)} гПа
+            <span>Далайн түвшин</span>
+          </dd>
         </div>
       </dl>
 

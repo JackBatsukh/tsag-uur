@@ -4,6 +4,7 @@ import Link from "next/link";
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   useSyncExternalStore,
 } from "react";
@@ -144,6 +145,8 @@ export function FarmerMode() {
   const [newNoteText, setNewNoteText] = useState("");
   const [activeMapLayer, setActiveMapLayer] = useState<WeatherLayerId>("precipitation");
   const [mapTimeIndex, setMapTimeIndex] = useState(0);
+  const [mapNearViewport, setMapNearViewport] = useState(false);
+  const mapSectionRef = useRef<HTMLElement>(null);
   const liteMode = useSyncExternalStore(subscribeToLiteMode, getLiteMode, () => true);
 
   useEffect(() => {
@@ -159,6 +162,28 @@ export function FarmerMode() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (liteMode || mapNearViewport || !mapSectionRef.current) return;
+    const Observer = (window as unknown as {
+      IntersectionObserver?: typeof IntersectionObserver;
+    }).IntersectionObserver;
+    if (!Observer) {
+      const timer = globalThis.setTimeout(() => setMapNearViewport(true), 0);
+      return () => globalThis.clearTimeout(timer);
+    }
+
+    const observer = new Observer(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+        setMapNearViewport(true);
+        observer.disconnect();
+      },
+      { rootMargin: "600px 0px" },
+    );
+    observer.observe(mapSectionRef.current);
+    return () => observer.disconnect();
+  }, [liteMode, mapNearViewport]);
 
   const irrigation = useMemo(() => buildIrrigationAdvisory(scenario, field), [scenario, field]);
   const harvest = useMemo(() => buildHarvestAdvisory(scenario, field), [scenario, field]);
@@ -364,15 +389,21 @@ export function FarmerMode() {
           </div>
         </section>
 
-        <section id="farmer-map" className="farmer-map-section" aria-labelledby="map-heading">
+        <section ref={mapSectionRef} id="farmer-map" className="farmer-map-section" aria-labelledby="map-heading">
           <div className="section-heading"><div><p className="farmer-eyebrow">7 · Цаг агаарын газрын зураг</p><h2 id="map-heading">Талбайн цэг ба weather overlay</h2></div><p>Одоогийн synthetic provider-ийг дахин ашиглана; scenario cards-ийн өдөр тутмын dataset-тэй ижил эх үүсвэр биш.</p></div>
           <div className="farmer-map-controls">
             <div role="group" aria-label="Газрын зургийн давхарга">{WEATHER_LAYER_DEFINITIONS.map((layer) => <button key={layer.id} type="button" aria-pressed={activeMapLayer === layer.id} onClick={() => setActiveMapLayer(layer.id)}>{layer.shortLabelMn}</button>)}</div>
             <label><span>Provider цаг: {mapTimeStep.labelMn}</span><input type="range" min="0" max={syntheticWeatherProvider.timeSteps.length - 1} value={mapTimeIndex} onChange={(event) => setMapTimeIndex(Number(event.target.value))} /></label>
           </div>
           <div className="farmer-map-frame">
-            {!liteMode ? (
+            {!liteMode && mapNearViewport ? (
               <DynamicWeatherMap provider={syntheticWeatherProvider} activeLayer={activeMapLayer} timeSelector={mapTimeStep.id} selectedCoordinates={field.location} onSelectCoordinates={(location) => updateField("location", location)} showWindParticles={activeMapLayer === "wind-speed"} />
+            ) : !liteMode ? (
+              <div className="farmer-lite-map">
+                <strong>Interactive map deferred</strong>
+                <p>Газрын зураг харагдах хэсэгт ойртоход MapLibre ачаална.</p>
+                <button type="button" onClick={() => setMapNearViewport(true)}>Одоо ачаалах</button>
+              </div>
             ) : (
               <div className="farmer-lite-map"><strong>Lite Mode · MapLibre ачаалаагүй</strong><p>Талбайн координат: {field.location ? `${field.location.latitude.toFixed(3)}, ${field.location.longitude.toFixed(3)}` : "сонгоогүй"}</p><button type="button" onClick={() => setSharedLiteMode(false)}>Интерактив зураг нээх</button></div>
             )}

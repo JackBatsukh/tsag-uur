@@ -404,3 +404,13 @@
   .farmer-app { --farmer-line: #727b74; }
   .farmer-field-form input, .farmer-field-form select, .farmer-field-form textarea { border-width: 2px; }
 }
+.farmer-forecast,
+.farmer-advisory-section,
+.farmer-risk-section,
+.farmer-field-section,
+.farmer-map-section,
+.farmer-planner-section,
+.farmer-trust-section {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 48rem;
+}

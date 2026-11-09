@@ -1,10 +1,9 @@
 import type { Metadata, Viewport } from "next";
 
-import "maplibre-gl/dist/maplibre-gl.css";
 import "./globals.css";
-import "../features/weather-explorer/explorer.css";
-import "../features/herder-mode/herder.css";
-import "../features/farmer-mode/farmer.css";
+
+import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
+import { WebVitalsReporter } from "@/components/web-vitals-reporter";
 
 export const metadata: Metadata = {
   title: {
@@ -37,9 +36,17 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
+  const webVitalsEndpoint = process.env.NEXT_PUBLIC_WEB_VITALS_ENDPOINT;
+
   return (
     <html lang="mn">
-      <body>{children}</body>
+      <body>
+        {children}
+        <ServiceWorkerRegistration />
+        {webVitalsEndpoint?.startsWith("/") ? (
+          <WebVitalsReporter endpoint={webVitalsEndpoint} />
+        ) : null}
+      </body>
     </html>
   );
 }

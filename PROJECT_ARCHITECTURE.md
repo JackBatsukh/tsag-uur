@@ -97,7 +97,7 @@ Do not create empty directories solely to match this target tree.
 1. Open the explorer -> Mongolia map, selected synthetic layer, and persistent demo disclosure.
 2. Select a known location or click a grid point -> interpolated point conditions and series.
 3. Change forecast valid time -> deterministic layer, wind, and point values update together.
-4. Use Lite Mode -> no MapLibre JavaScript or base-map tile requests; text/grid fallback remains useful.
+4. On a compact viewport's first visit or a data-saver connection, start in Lite Mode -> no MapLibre JavaScript or base-map tile requests; text/grid fallback remains useful and the user can explicitly enable the full map. A saved preference wins on later visits.
 5. Open `/dashboard` -> the Phase 1 information-dashboard reference.
 6. Citizen, Herder, and Farmer modes are active. Researcher mode remains unavailable. Herder Mode uses an attributable external forecast but does not claim official warnings or pasture-condition knowledge. Farmer Mode remains a non-operational demo.
 
@@ -209,7 +209,7 @@ All chosen core frameworks/libraries are free/open source. Running infrastructur
 - **ADR-003:** Modular application + separate offline weather worker, not premature microservices.
 - **ADR-004:** Scientific transparency and low-end mobile performance are product requirements.
 - **ADR-005:** Keep map rendering behind a provider boundary; synthetic and future WRF sources must use the same typed UI contract.
-- **ADR-006:** Lite Mode must remain useful without loading MapLibre or requesting third-party tiles.
+- **ADR-006:** Lite Mode must remain useful without loading MapLibre or requesting third-party tiles. Compact-view first visits and data-saver connections default to Lite Mode; the browser-local user preference wins afterward.
 - **ADR-007:** Public OpenStreetMap Standard tiles are a development/demo base map, not the production scaling strategy.
 - **ADR-008:** Device location and missing-livestock notes remain browser-local until an explicit, reviewed sharing design exists; sensitive coordinates must not enter analytics or logs. Each browser/device restores only its own saved state.
 - **ADR-009:** Herder direction guidance compares attributable forecast metrics at four points and never claims pasture quality, animal movement, route safety, or probability.
