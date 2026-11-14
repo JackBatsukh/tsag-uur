@@ -69,13 +69,44 @@ function renderingProfile(): RenderingProfile {
   };
 }
 
-function fitCanvas(canvas: HTMLCanvasElement, pixelRatio = 1): void {
-  const width = Math.max(1, Math.round(canvas.clientWidth * pixelRatio));
-  const height = Math.max(1, Math.round(canvas.clientHeight * pixelRatio));
+function fitCanvas(
+  canvas: HTMLCanvasElement,
+  pixelRatio = 1,
+): Readonly<{ cssWidth: number; cssHeight: number }> {
+  const cssWidth = Math.max(1, canvas.clientWidth);
+  const cssHeight = Math.max(1, canvas.clientHeight);
+  const width = Math.max(1, Math.round(cssWidth * pixelRatio));
+  const height = Math.max(1, Math.round(cssHeight * pixelRatio));
   if (canvas.width !== width || canvas.height !== height) {
     canvas.width = width;
     canvas.height = height;
   }
+  return { cssWidth, cssHeight };
+}
+
+function projectedGridCoordinates(
+  map: MapLibreMap,
+  width: number,
+  height: number,
+  sampleSize: number,
+): Float32Array {
+  const longitudes = new Float32Array(width);
+  const latitudes = new Float32Array(height);
+  for (let x = 0; x < width; x += 1) {
+    longitudes[x] = map.unproject([(x + 0.5) * sampleSize, 0]).lng;
+  }
+  for (let y = 0; y < height; y += 1) {
+    latitudes[y] = map.unproject([0, (y + 0.5) * sampleSize]).lat;
+  }
+  const coordinates = new Float32Array(width * height * 2);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const offset = (y * width + x) * 2;
+      coordinates[offset] = longitudes[x] ?? 0;
+      coordinates[offset + 1] = latitudes[y] ?? 0;
+    }
+  }
+  return coordinates;
 }
 
 export function renderWeatherOverlay(
@@ -85,17 +116,23 @@ export function renderWeatherOverlay(
   layer: WeatherLayerId,
   sampleSize = 8,
 ): void {
-  fitCanvas(canvas);
+  const size = fitCanvas(canvas);
   const context = canvas.getContext("2d", { alpha: true });
   if (!context) return;
 
   const sampleWidth = Math.max(
     1,
-    Math.ceil(canvas.clientWidth / sampleSize),
+    Math.ceil(size.cssWidth / sampleSize),
   );
   const sampleHeight = Math.max(
     1,
-    Math.ceil(canvas.clientHeight / sampleSize),
+    Math.ceil(size.cssHeight / sampleSize),
+  );
+  const coordinates = projectedGridCoordinates(
+    map,
+    sampleWidth,
+    sampleHeight,
+    sampleSize,
   );
   const buffer = document.createElement("canvas");
   buffer.width = sampleWidth;
@@ -106,11 +143,12 @@ export function renderWeatherOverlay(
   const image = bufferContext.createImageData(sampleWidth, sampleHeight);
   for (let y = 0; y < sampleHeight; y += 1) {
     for (let x = 0; x < sampleWidth; x += 1) {
-      const point = map.unproject([
-        (x + 0.5) * sampleSize,
-        (y + 0.5) * sampleSize,
-      ]);
-      const sample = sampleWeatherGrid(grid, point.lat, point.lng);
+      const coordinateIndex = (y * sampleWidth + x) * 2;
+      const sample = sampleWeatherGrid(
+        grid,
+        coordinates[coordinateIndex + 1] ?? 0,
+        coordinates[coordinateIndex] ?? 0,
+      );
       const pixelIndex = (y * sampleWidth + x) * 4;
       if (!sample) {
         image.data[pixelIndex + 3] = 0;
@@ -141,6 +179,8 @@ function valuesForLayer(
       return grid.fields.windSpeedMps;
     case "precipitation":
       return grid.fields.hourlyPrecipitationMm;
+    case "snowfall":
+      return grid.fields.snowfallCm;
     case "humidity":
       return grid.fields.relativeHumidityPercent;
     case "pressure":
@@ -209,28 +249,21 @@ export class WeatherOverlayRenderer {
       return;
     }
 
-    fitCanvas(this.#canvas);
+    const size = fitCanvas(this.#canvas);
     const width = Math.max(
       1,
-      Math.ceil(this.#canvas.clientWidth / this.#sampleSize),
+      Math.ceil(size.cssWidth / this.#sampleSize),
     );
     const height = Math.max(
       1,
-      Math.ceil(this.#canvas.clientHeight / this.#sampleSize),
+      Math.ceil(size.cssHeight / this.#sampleSize),
     );
-    const coordinates = new Float32Array(width * height * 2);
-
-    for (let y = 0; y < height; y += 1) {
-      for (let x = 0; x < width; x += 1) {
-        const point = this.#map.unproject([
-          (x + 0.5) * this.#sampleSize,
-          (y + 0.5) * this.#sampleSize,
-        ]);
-        const offset = (y * width + x) * 2;
-        coordinates[offset] = point.lng;
-        coordinates[offset + 1] = point.lat;
-      }
-    }
+    const coordinates = projectedGridCoordinates(
+      this.#map,
+      width,
+      height,
+      this.#sampleSize,
+    );
 
     const values = valuesForLayer(grid, layer).slice();
     const colorScale = flattenedColorScale(layer);
@@ -586,15 +619,17 @@ export class WindParticleRenderer {
     );
     const context = this.#context;
     if (!context) return;
-    const ratio = this.#canvas.width / Math.max(1, this.#canvas.clientWidth);
+    const cssWidth = Math.max(1, this.#canvas.clientWidth);
+    const cssHeight = Math.max(1, this.#canvas.clientHeight);
+    const ratio = this.#canvas.width / cssWidth;
     context.clearRect(0, 0, this.#canvas.width, this.#canvas.height);
     context.save();
     context.scale(ratio, ratio);
     context.strokeStyle = "rgba(244, 252, 255, 0.76)";
     context.fillStyle = "rgba(244, 252, 255, 0.82)";
     context.lineWidth = 1.1;
-    for (let y = 28; y < this.#canvas.clientHeight; y += 58) {
-      for (let x = 28; x < this.#canvas.clientWidth; x += 58) {
+    for (let y = 28; y < cssHeight; y += 58) {
+      for (let x = 28; x < cssWidth; x += 58) {
         const coordinates = this.#map.unproject([x, y]);
         const sample = sampleWeatherGrid(
           this.#grid,
@@ -745,7 +780,9 @@ export class WindParticleRenderer {
     const deltaSeconds = Math.min(elapsed / 1_000, 0.08);
     const context = this.#context;
     if (!context) return;
-    const ratio = this.#canvas.width / Math.max(1, this.#canvas.clientWidth);
+    const cssWidth = Math.max(1, this.#canvas.clientWidth);
+    const cssHeight = Math.max(1, this.#canvas.clientHeight);
+    const ratio = this.#canvas.width / cssWidth;
     context.save();
     context.globalCompositeOperation = "destination-in";
     context.fillStyle = "rgba(0, 0, 0, 0.5)";
@@ -786,8 +823,8 @@ export class WindParticleRenderer {
       const isVisible =
         next.x >= -10 &&
         next.y >= -10 &&
-        next.x <= this.#canvas.clientWidth + 10 &&
-        next.y <= this.#canvas.clientHeight + 10;
+        next.x <= cssWidth + 10 &&
+        next.y <= cssHeight + 10;
       if (!isVisible || !this.#grid.metadata.bounds) {
         resetParticle(particle, index, this.#map, this.#grid);
         continue;

@@ -22,6 +22,7 @@ export {
   SyntheticWeatherProvider,
   syntheticWeatherProvider,
 } from "./synthetic-weather-provider";
+export { OpenMeteoWeatherProvider } from "./open-meteo-weather-provider";
 export type { SyntheticWeatherProviderOptions } from "./synthetic-weather-provider";
 export type {
   WeatherBounds,
@@ -38,6 +39,9 @@ export type {
   WeatherMetadata,
   WeatherModeDefinition,
   WeatherPointForecast,
+  SerializedWeatherGrid,
+  SerializedWeatherGridFields,
+  WeatherGridPayload,
   WeatherSample,
   WeatherTimeSelector,
   WeatherTimeStep,

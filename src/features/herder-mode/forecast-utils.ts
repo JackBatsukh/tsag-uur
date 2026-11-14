@@ -64,6 +64,18 @@ export function isSevereWeatherCode(code: number): boolean {
   return [57, 65, 67, 75, 82, 86, 95, 96, 97, 99].includes(code);
 }
 
+export function forecastWindowFromTime(
+  hourly: readonly HerderHourlyWeather[],
+  departureTime: string,
+  windowHours = 12,
+): readonly HerderHourlyWeather[] {
+  if (!departureTime) return hourly.slice(0, windowHours);
+  const departureTimestamp = Date.parse(departureTime);
+  if (!Number.isFinite(departureTimestamp)) return [];
+  const startIndex = hourly.findIndex((hour) => Date.parse(hour.time) >= departureTimestamp);
+  return startIndex < 0 ? [] : hourly.slice(startIndex, startIndex + windowHours);
+}
+
 export function summarizeDirection(
   id: PastureDirectionId,
   coordinates: HerderCoordinates,

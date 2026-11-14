@@ -9,10 +9,9 @@ const WeatherMapClient = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="map-state map-state--loading" role="status">
+      <div className="map-state map-state--loading" role="status" aria-label="MapLibre газрын зураг ачаалж байна">
         <span className="map-state__spinner" aria-hidden="true" />
-        <strong>MapLibre ачаалж байна</strong>
-        <p>Газрын зургийн модуль зөвхөн бүрэн горимд ачаална.</p>
+        <span className="sr-only">MapLibre газрын зураг ачаалж байна</span>
       </div>
     ),
   },

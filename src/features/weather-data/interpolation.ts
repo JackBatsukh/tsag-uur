@@ -34,6 +34,7 @@ export interface WeatherConditionInput {
   readonly windSpeedMps: number;
   readonly relativeHumidityPercent: number;
   readonly hourlyPrecipitationMm: number;
+  readonly snowfallCm?: number;
 }
 
 export function containsCoordinates(
@@ -97,7 +98,9 @@ export function resolveWeatherCondition({
   windSpeedMps,
   relativeHumidityPercent,
   hourlyPrecipitationMm,
+  snowfallCm = 0,
 }: WeatherConditionInput): WeatherCondition {
+  if (snowfallCm >= 0.01) return "snow";
   if (hourlyPrecipitationMm >= 0.08) {
     return temperatureC <= 0.8 ? "snow" : "rain";
   }
@@ -204,6 +207,7 @@ export function sampleWeatherGrid(
   const hourlyPrecipitationMm = interpolate(
     grid.fields.hourlyPrecipitationMm,
   );
+  const snowfallCm = interpolate(grid.fields.snowfallCm);
   const condition = resolveWeatherCondition({
     latitude,
     longitude,
@@ -211,6 +215,7 @@ export function sampleWeatherGrid(
     windSpeedMps,
     relativeHumidityPercent,
     hourlyPrecipitationMm,
+    snowfallCm,
   });
 
   return {
@@ -226,6 +231,7 @@ export function sampleWeatherGrid(
     relativeHumidityPercent,
     pressureHpa,
     hourlyPrecipitationMm,
+    snowfallCm,
     condition,
   };
 }

@@ -45,6 +45,14 @@ export const MAP_LAYER_PRESENTATION: Readonly<
     gradient:
       "linear-gradient(90deg, rgba(226,245,251,.25), #8dd5ea, #368fce, #5651a8, #a93886)",
   },
+  snowfall: {
+    labelMn: "Цагийн цас",
+    unit: "см/ц",
+    minimum: 0,
+    maximum: 3,
+    gradient:
+      "linear-gradient(90deg, rgba(248,250,252,.15), #dbeafe, #93c5fd, #818cf8, #4c1d95)",
+  },
   humidity: {
     labelMn: "Харьцангуй чийгшил",
     unit: "%",
@@ -88,6 +96,14 @@ const COLOR_SCALES: Readonly<Record<WeatherLayerId, readonly NumericColorStop[]>
     { value: 1.5, color: [54, 143, 206, 0.58] },
     { value: 4, color: [86, 81, 168, 0.64] },
     { value: 8, color: [169, 56, 134, 0.68] },
+  ],
+  snowfall: [
+    { value: 0, color: [248, 250, 252, 0] },
+    { value: 0.02, color: [219, 234, 254, 0.28] },
+    { value: 0.25, color: [147, 197, 253, 0.48] },
+    { value: 0.8, color: [129, 140, 248, 0.58] },
+    { value: 1.8, color: [109, 40, 217, 0.64] },
+    { value: 3, color: [76, 29, 149, 0.68] },
   ],
   humidity: [
     { value: 10, color: [237, 224, 181, 0.36] },
@@ -168,6 +184,8 @@ function valueForLayer(
       return sample.windSpeedMps;
     case "precipitation":
       return sample.hourlyPrecipitationMm;
+    case "snowfall":
+      return sample.snowfallCm;
     case "humidity":
       return sample.relativeHumidityPercent;
     case "pressure":

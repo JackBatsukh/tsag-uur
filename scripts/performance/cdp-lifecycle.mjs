@@ -162,14 +162,25 @@ try {
   const lifecycle = [];
   const pageErrors = [];
   const failedRequests = [];
+  const browserErrors = [];
   client.on("Page.lifecycleEvent", (event) => lifecycle.push(event.name));
   client.on("Runtime.exceptionThrown", (event) => {
-    pageErrors.push(event.exceptionDetails?.text ?? "Uncaught browser exception");
+    const details = event.exceptionDetails ?? {};
+    pageErrors.push({
+      text: details.text ?? "Uncaught browser exception",
+      description: details.exception?.description ?? details.exception?.value ?? "",
+      url: details.url ?? "",
+      line: details.lineNumber ?? null,
+      column: details.columnNumber ?? null,
+    });
   });
   client.on("Network.loadingFailed", (event) => {
     if (!event.canceled && event.errorText !== "net::ERR_ABORTED") {
       failedRequests.push(event.errorText);
     }
+  });
+  client.on("Log.entryAdded", ({ entry }) => {
+    if (entry.level === "error") browserErrors.push(entry.text);
   });
 
   await Promise.all([
@@ -198,13 +209,18 @@ try {
   const liteMode = process.env.TSAG_UUR_PERF_LITE !== "0";
   await client.send("Page.addScriptToEvaluateOnNewDocument", {
     source: `
-      try { localStorage.setItem("tsag-uur-lite-mode", ${JSON.stringify(String(liteMode))}); } catch {}
-      globalThis.__tsagUurPerf = { lcp: 0, cls: 0, longTaskCount: 0, longTaskDuration: 0 };
+      try { localStorage.setItem("tsag-uur-lite-mode-v2", ${JSON.stringify(String(liteMode))}); } catch {}
+      globalThis.__tsagUurPerf = { lcp: 0, lcpElement: "", cls: 0, longTaskCount: 0, longTaskDuration: 0 };
       try {
         new PerformanceObserver((list) => {
           const entries = list.getEntries();
           const last = entries[entries.length - 1];
-          if (last) globalThis.__tsagUurPerf.lcp = last.startTime;
+          if (last) {
+            globalThis.__tsagUurPerf.lcp = last.startTime;
+            globalThis.__tsagUurPerf.lcpElement = last.element
+              ? last.element.tagName.toLowerCase() + "." + String(last.element.className || "").trim()
+              : "";
+          }
         }).observe({ type: "largest-contentful-paint", buffered: true });
         new PerformanceObserver((list) => {
           for (const entry of list.getEntries()) {
@@ -225,7 +241,51 @@ try {
   const loaded = client.waitFor("Page.loadEventFired");
   await client.send("Page.navigate", { url: target });
   await loaded;
-  await new Promise((resolve) => setTimeout(resolve, 3_000));
+  await evaluate(
+    client,
+    `(async () => {
+      const fullMap = ${JSON.stringify(!liteMode)};
+      const startedAt = performance.now();
+      while (performance.now() - startedAt < 12_000) {
+        const dataReady = document.querySelector("[data-weather-status]")
+          ?.getAttribute("data-weather-status") !== "loading";
+        const mapReady = fullMap
+          ? Boolean(document.querySelector(".maplibregl-canvas")) && !document.querySelector(".map-state")
+          : Boolean(document.querySelector(".lite-map"));
+        if (dataReady && mapReady) return true;
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      return false;
+    })()`,
+  );
+
+  const frameMetrics = liteMode
+    ? null
+    : await evaluate(
+        client,
+        `(async () => {
+          const intervals = [];
+          let previous;
+          await new Promise((resolve) => {
+            const sample = (timestamp) => {
+              if (previous !== undefined) intervals.push(timestamp - previous);
+              previous = timestamp;
+              if (intervals.length >= 90) resolve();
+              else requestAnimationFrame(sample);
+            };
+            requestAnimationFrame(sample);
+          });
+          const sorted = [...intervals].sort((a, b) => a - b);
+          const averageMs = intervals.reduce((sum, value) => sum + value, 0) / intervals.length;
+          return {
+            sampleCount: intervals.length,
+            averageMs,
+            p95Ms: sorted[Math.floor(sorted.length * 0.95)] ?? 0,
+            maximumMs: sorted[sorted.length - 1] ?? 0,
+            averageFps: 1000 / averageMs,
+          };
+        })()`,
+      );
 
   const browserMetrics = await evaluate(
     client,
@@ -255,6 +315,15 @@ try {
             .reduce((sum, item) => sum + (item.transferSize || 0), 0),
           mapRequests: resources.filter((item) => /maplibre|tile\\.openstreetmap\\.org/i.test(item.name))
             .map((item) => item.name),
+          names: resources.map((item) => item.name),
+        },
+        map: {
+          litePreference: localStorage.getItem("tsag-uur-lite-mode-v2"),
+          weatherMapCount: document.querySelectorAll(".weather-map").length,
+          mapCanvasCount: document.querySelectorAll(".maplibregl-canvas").length,
+          liteMapCount: document.querySelectorAll(".lite-map").length,
+          stateText: document.querySelector(".map-state")?.textContent?.trim() ?? "",
+          dataKind: document.querySelector("[data-weather-status]")?.getAttribute("data-weather-status") ?? "",
         },
         serviceWorkerReady,
       };
@@ -266,6 +335,7 @@ try {
     ...browserMetrics,
     paint: {
       lcpMs: Math.round(browserMetrics.paint.lcp),
+      lcpElement: browserMetrics.paint.lcpElement,
       cls: Number(browserMetrics.paint.cls.toFixed(3)),
       longTaskCount: browserMetrics.paint.longTaskCount,
       longTaskDurationMs: Math.round(browserMetrics.paint.longTaskDuration),
@@ -276,21 +346,45 @@ try {
       scriptDurationMs: Math.round((metric.ScriptDuration ?? 0) * 1_000),
       nodes: metric.Nodes ?? 0,
     },
+    frames: frameMetrics
+      ? {
+          sampleCount: frameMetrics.sampleCount,
+          averageMs: Number(frameMetrics.averageMs.toFixed(2)),
+          p95Ms: Number(frameMetrics.p95Ms.toFixed(2)),
+          maximumMs: Number(frameMetrics.maximumMs.toFixed(2)),
+          averageFps: Number(frameMetrics.averageFps.toFixed(1)),
+        }
+      : null,
     lifecycle: [...new Set(lifecycle)],
     pageErrors,
+    browserErrors,
     failedRequests,
   };
   console.dir(summary, { depth: null });
 
   const failures = [];
   if (summary.readyState !== "complete") failures.push("document did not complete");
-  if (!summary.serviceWorkerReady) failures.push("service worker did not become ready");
+  if (!process.env.TSAG_UUR_PERF_URL && !summary.serviceWorkerReady) {
+    failures.push("service worker did not become ready");
+  }
   if (summary.paint.lcpMs <= 0 || summary.paint.lcpMs > 2_500) failures.push("LCP budget failed");
   if (summary.paint.cls > 0.1) failures.push("CLS budget failed");
   if (pageErrors.length) failures.push(`${pageErrors.length} browser exception(s)`);
   if (failedRequests.length) failures.push(`${failedRequests.length} failed request(s)`);
   if (liteMode && summary.resources.mapRequests.length) {
     failures.push("Lite Mode fetched MapLibre or OpenStreetMap resources");
+  }
+  if (!liteMode && summary.map.mapCanvasCount !== 1) {
+    failures.push("interactive map canvas did not initialize");
+  }
+  if (!liteMode && summary.map.stateText) {
+    failures.push("interactive map did not reach its ready state");
+  }
+  if (!liteMode && !summary.resources.mapRequests.some((url) => /tile\.openstreetmap\.org/i.test(url))) {
+    failures.push("OpenStreetMap tiles were not requested");
+  }
+  if (!liteMode && summary.frames && summary.frames.averageMs > 34) {
+    failures.push("average animation frame budget exceeded 34 ms");
   }
   if (failures.length) throw new Error(`Lifecycle check failed: ${failures.join(", ")}`);
 } finally {

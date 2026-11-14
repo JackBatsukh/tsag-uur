@@ -1,9 +1,11 @@
 import type { SVGProps } from "react";
 
 export type SpriteIconName =
-  | "arrow" | "brand" | "clock" | "close" | "database" | "droplet"
-  | "humidity" | "info" | "layers" | "lite" | "location" | "map"
-  | "menu" | "pause" | "play" | "search" | "shield" | "wind";
+  | "arrow" | "back" | "bell" | "brand" | "clock" | "close" | "copy"
+  | "database" | "droplet" | "fire" | "home" | "humidity" | "info"
+  | "layers" | "lite" | "livestock" | "location" | "map" | "menu"
+  | "message" | "pause" | "person" | "person-search" | "play" | "report"
+  | "road" | "search" | "share" | "shield" | "sos" | "weather" | "wind";
 
 export type SpriteIconProps = Omit<SVGProps<SVGSVGElement>, "children"> & {
   readonly name: SpriteIconName;

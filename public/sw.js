@@ -1,10 +1,11 @@
 /* Tsag-uur bounded offline shell. No API, map tile, or location caching. */
-const VERSION = "tsag-uur-v1";
+const VERSION = "tsag-uur-v3";
 const STATIC_CACHE = `${VERSION}-static`;
 const PAGE_CACHE = `${VERSION}-pages`;
 const OFFLINE_URL = "/offline";
 const MAX_STATIC_ENTRIES = 80;
-const MAX_PAGE_ENTRIES = 6;
+const MAX_PAGE_ENTRIES = 8;
+const PUBLIC_SHELL_PAGES = ["/offline", "/herder"];
 
 async function trim(cacheName, maximum) {
   const cache = await caches.open(cacheName);
@@ -14,15 +15,15 @@ async function trim(cacheName, maximum) {
 
 self.addEventListener("install", (event) => {
   event.waitUntil((async () => {
-    const request = new Request(OFFLINE_URL, { cache: "reload" });
-    const response = await fetch(request);
     const pageCache = await caches.open(PAGE_CACHE);
-    await pageCache.put(request, response.clone());
-
-    const html = await response.text();
-    const assets = [...html.matchAll(/["'](\/_next\/static\/[^"']+)["']/g)]
-      .map((match) => match[1])
-      .filter(Boolean);
+    const responses = await Promise.all(PUBLIC_SHELL_PAGES.map(async (path) => {
+      const request = new Request(path, { cache: "reload" });
+      const response = await fetch(request);
+      await pageCache.put(request, response.clone());
+      return response.text();
+    }));
+    const assets = responses.flatMap((html) => [...html.matchAll(/["'](\/_next\/static\/[^"']+)["']/g)]
+      .map((match) => match[1]).filter(Boolean));
     if (assets.length) {
       const staticCache = await caches.open(STATIC_CACHE);
       await staticCache.addAll([...new Set(assets)]);

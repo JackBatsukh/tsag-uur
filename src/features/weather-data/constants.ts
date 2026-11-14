@@ -22,6 +22,7 @@ export const SYNTHETIC_WEATHER_UNITS: WeatherUnits = Object.freeze({
   humidity: "%",
   pressure: "hPa",
   precipitation: "mm/h",
+  snowfall: "cm/h",
 });
 
 export const WEATHER_CONDITION_LABELS_MN: Readonly<
@@ -101,6 +102,21 @@ export const WEATHER_LAYER_DEFINITIONS: readonly WeatherLayerDefinition[] =
         { value: 1, color: "#60a5fa" },
         { value: 2.2, color: "#2563eb" },
         { value: 4, color: "#312e81" },
+      ],
+    },
+    {
+      id: "snowfall",
+      labelMn: "Цас",
+      shortLabelMn: "Цас",
+      field: "snowfallCm",
+      unit: "см/ц",
+      valueRange: [0, 3],
+      colorStops: [
+        { value: 0, color: "#f8fafc" },
+        { value: 0.05, color: "#dbeafe" },
+        { value: 0.5, color: "#93c5fd" },
+        { value: 1.5, color: "#818cf8" },
+        { value: 3, color: "#4c1d95" },
       ],
     },
     {

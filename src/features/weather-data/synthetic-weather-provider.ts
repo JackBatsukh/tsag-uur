@@ -47,6 +47,7 @@ interface SyntheticFields {
   readonly relativeHumidityPercent: number;
   readonly pressureHpa: number;
   readonly hourlyPrecipitationMm: number;
+  readonly snowfallCm: number;
 }
 
 function clamp(value: number, minimum: number, maximum: number): number {
@@ -234,6 +235,7 @@ function calculateSyntheticFields(
     1.25 * secondaryMoisture -
     0.68;
   const hourlyPrecipitationMm = clamp(rawPrecipitation, 0, 3.6);
+  const snowfallCm = temperatureC <= 0.8 ? hourlyPrecipitationMm * 0.8 : 0;
 
   const pressureWave =
     3.8 * Math.cos((longitude - 104) * 0.14 + offsetHours * 0.045) +
@@ -251,6 +253,7 @@ function calculateSyntheticFields(
     relativeHumidityPercent,
     pressureHpa,
     hourlyPrecipitationMm,
+    snowfallCm,
   };
 }
 
@@ -416,6 +419,7 @@ export class SyntheticWeatherProvider implements WeatherDataProvider {
       relativeHumidityPercent: new Float32Array(fieldLength),
       pressureHpa: new Float32Array(fieldLength),
       hourlyPrecipitationMm: new Float32Array(fieldLength),
+      snowfallCm: new Float32Array(fieldLength),
       conditionCodes: new Uint8Array(fieldLength),
     };
 
@@ -442,6 +446,7 @@ export class SyntheticWeatherProvider implements WeatherDataProvider {
           windSpeedMps,
           relativeHumidityPercent: values.relativeHumidityPercent,
           hourlyPrecipitationMm: values.hourlyPrecipitationMm,
+          snowfallCm: values.snowfallCm,
         });
 
         fields.temperatureC[index] = values.temperatureC;
@@ -454,6 +459,7 @@ export class SyntheticWeatherProvider implements WeatherDataProvider {
         fields.pressureHpa[index] = values.pressureHpa;
         fields.hourlyPrecipitationMm[index] =
           values.hourlyPrecipitationMm;
+        fields.snowfallCm[index] = values.snowfallCm;
         fields.conditionCodes[index] = conditionToCode(condition);
       }
     }

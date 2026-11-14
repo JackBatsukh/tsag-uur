@@ -105,3 +105,69 @@ export interface LivestockSearchPayload {
   };
   readonly limitationsMn: readonly string[];
 }
+
+export type HerderView =
+  | "home"
+  | "livestock"
+  | "sos"
+  | "person"
+  | "fire"
+  | "weather"
+  | "road"
+  | "report"
+  | "notifications"
+  | "profile";
+
+export type DeliveryStatus = "draft" | "ready" | "opened" | "sent" | "delivered" | "failed" | "unknown";
+export type ReportStatus = "draft" | "submitted" | "awaiting-review" | "verified" | "disputed" | "rejected" | "resolved";
+export type DataProvenance = "official" | "satellite" | "community" | "forecast" | "demo";
+
+export interface EmergencyDraft {
+  readonly category: "stranded" | "medical" | "vehicle" | "livestock" | "snowstorm" | "other";
+  readonly description: string;
+  readonly contactName: string;
+  readonly latitude: string;
+  readonly longitude: string;
+}
+
+export interface MissingPersonDraft {
+  readonly identifyingDescription: string;
+  readonly lastKnownPlace: string;
+  readonly lastSeenTime: string;
+  readonly weatherNote: string;
+  readonly coordinatorContact: string;
+  readonly authorizationConfirmed: boolean;
+  readonly vulnerablePerson: boolean;
+}
+
+export interface CommunityReportDraft {
+  readonly category: string;
+  readonly description: string;
+  readonly eventTime: string;
+  readonly locationNote: string;
+  readonly correctionOf: string;
+}
+
+export interface FireHotspot {
+  readonly id: string;
+  readonly latitude: number;
+  readonly longitude: number;
+  readonly detectedAt: string;
+  readonly confidence: string;
+  readonly satellite: string;
+  readonly instrument: string;
+  readonly source: "NASA FIRMS";
+}
+
+export interface FireHotspotPayload {
+  readonly configured: boolean;
+  readonly fetchedAt: string;
+  readonly source: {
+    readonly name: "NASA FIRMS";
+    readonly url: string;
+    readonly product: string;
+    readonly provenance: "satellite";
+  };
+  readonly hotspots: readonly FireHotspot[];
+  readonly messageMn: string;
+}

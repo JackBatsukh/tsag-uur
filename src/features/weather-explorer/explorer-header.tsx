@@ -2,7 +2,7 @@ import { useId, useState } from "react";
 import Link from "next/link";
 
 import { BrandMark } from "@/components/icons";
-import type { WeatherCoordinates } from "@/features/weather-data";
+import type { WeatherCoordinates, WeatherMetadata } from "@/features/weather-data";
 
 import {
   DEMO_LOCATIONS,
@@ -12,10 +12,14 @@ import { SearchIcon } from "./explorer-icons";
 
 interface ExplorerHeaderProps {
   readonly onSelectCoordinates: (coordinates: WeatherCoordinates) => void;
+  readonly metadata: WeatherMetadata;
+  readonly dataStatus: "loading" | "live" | "fallback";
 }
 
 export function ExplorerHeader({
   onSelectCoordinates,
+  metadata,
+  dataStatus,
 }: ExplorerHeaderProps) {
   const listId = useId();
   const [query, setQuery] = useState("");
@@ -72,10 +76,14 @@ export function ExplorerHeader({
         </span>
       </form>
 
-      <div className="dataset-status" title="Зохиомол хөгжүүлэлтийн өгөгдөл">
+      <div
+        className="dataset-status"
+        data-live={dataStatus === "live"}
+        title={dataStatus === "live" ? metadata.source : "Live forecast ачаалж байна эсвэл түр тасарсан"}
+      >
         <span aria-hidden="true" />
-        <span className="dataset-status__long">Synthetic dataset</span>
-        <span className="dataset-status__short">Demo</span>
+        <span className="dataset-status__long">{dataStatus === "live" ? "NOAA GFS · Open data" : dataStatus === "loading" ? "Forecast loading" : "Demo fallback"}</span>
+        <span className="dataset-status__short">{dataStatus === "live" ? "GFS" : dataStatus === "loading" ? "…" : "Demo"}</span>
       </div>
 
     </header>

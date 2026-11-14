@@ -1,5 +1,6 @@
 import type {
   WeatherLayerDefinition,
+  WeatherMetadata,
   WeatherSample,
 } from "@/features/weather-data";
 
@@ -9,7 +10,7 @@ interface LiteMapProps {
   readonly sample: WeatherSample | null;
   readonly activeLayer: WeatherLayerDefinition;
   readonly initializing?: boolean;
-  readonly generatedAt: string;
+  readonly metadata: WeatherMetadata;
   readonly onEnableFullMap: () => void;
 }
 
@@ -17,7 +18,7 @@ export function LiteMap({
   sample,
   activeLayer,
   initializing = false,
-  generatedAt,
+  metadata,
   onEnableFullMap,
 }: LiteMapProps) {
   return (
@@ -41,10 +42,10 @@ export function LiteMap({
           {initializing ? "Горимыг шалгаж байна" : "Lite Mode идэвхтэй"}
         </h1>
         <p>
-          MapLibre, OpenStreetMap tile болон wind animation ачаалаагүй. Текстэн demo мэдээлэл хэвийн ажиллана.
+          MapLibre, OpenStreetMap tile болон wind animation ачаалаагүй. Текстэн цаг агаарын мэдээлэл хэвийн ажиллана.
         </p>
         <p className="lite-map__freshness">
-          Demo snapshot үүсгэсэн: <time dateTime={generatedAt}>{generatedAt}</time>
+          Өгөгдөл татсан: <time dateTime={metadata.generatedAt}>{metadata.generatedAt}</time>
           {sample ? (
             <> · Хүчинтэй: <time dateTime={sample.validTime}>{sample.validTime}</time></>
           ) : null}
@@ -54,7 +55,7 @@ export function LiteMap({
             <MapPinIcon />
             <span>
               {sample.coordinates.latitude.toFixed(3)}° N, {sample.coordinates.longitude.toFixed(3)}° E
-              <small>{activeLayer.labelMn} · synthetic</small>
+              <small>{activeLayer.labelMn} · {metadata.isSynthetic ? "demo" : "GFS"}</small>
             </span>
           </div>
         ) : null}

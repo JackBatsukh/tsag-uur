@@ -11,7 +11,7 @@ export const metadata: Metadata = {
     template: "%s | Tsag-uur",
   },
   description:
-    "Монгол орны synthetic цаг агаарын өгөгдлийг интерактив газрын зураг дээр шинжлэх Tsag-uur платформын хөгжүүлэлтийн demo.",
+    "Монгол орны NOAA GFS урьдчилсан төлөв, салхи, хур тунадас, цасыг интерактив газрын зураг дээр үзүүлэх Tsag-uur платформ.",
   applicationName: "Tsag-uur",
   keywords: [
     "Монгол цаг агаар",

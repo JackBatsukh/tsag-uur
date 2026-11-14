@@ -5,6 +5,7 @@ import {
   WEATHER_MODE_DEFINITIONS,
 } from "@/features/weather-data";
 import type {
+  WeatherMetadata,
   WeatherLayerId,
   WeatherUserMode,
 } from "@/features/weather-data";
@@ -26,6 +27,8 @@ interface ExplorerSidebarProps {
   readonly onLiteModeChange: (enabled: boolean) => void;
   readonly showWindParticles: boolean;
   readonly onWindParticlesChange: (enabled: boolean) => void;
+  readonly metadata: WeatherMetadata;
+  readonly dataStatus: "loading" | "live" | "fallback";
 }
 
 export function ExplorerSidebar({
@@ -37,6 +40,8 @@ export function ExplorerSidebar({
   onLiteModeChange,
   showWindParticles,
   onWindParticlesChange,
+  metadata,
+  dataStatus,
 }: ExplorerSidebarProps) {
   return (
     <aside
@@ -139,7 +144,7 @@ export function ExplorerSidebar({
           <span className="toggle-row__icon toggle-row__icon--wind" aria-hidden="true">≈</span>
           <span>
             <strong>Салхины урсгал</strong>
-            <small>Synthetic U/V vector</small>
+            <small>{metadata.isSynthetic ? "Synthetic U/V vector" : "GFS 10 м U/V vector"}</small>
           </span>
           <input
             type="checkbox"
@@ -151,11 +156,12 @@ export function ExplorerSidebar({
         </label>
       </div>
 
-      <div className="sidebar-data-note">
+      <div className="sidebar-data-note" data-live={dataStatus === "live"}>
         <InfoCircleIcon />
         <p>
-          <strong>Шинжлэх ухаанаар баталгаажаагүй.</strong>
-          Өгөгдлийг аналитик функцээр үүсгэсэн бөгөөд бодит шийдвэрт ашиглахгүй.
+          <strong>{dataStatus === "live" ? "Open-source урьдчилсан төлөв." : "Demo fallback."}</strong>
+          {dataStatus === "live" ? " NOAA GFS цэгүүдийг Open-Meteo-оор авч, дэлгэцийн grid дээр интерполяц хийсэн. Албан ёсны сэрэмжлүүлэг биш." : " Live provider ажиллахгүй үед аналитик зохиомол grid ашиглана; бодит шийдвэрт ашиглахгүй."}
+          {dataStatus === "live" && metadata.sourceUrl ? <> <a href={metadata.sourceUrl} target="_blank" rel="noreferrer">Эх сурвалж</a></> : null}
         </p>
       </div>
 

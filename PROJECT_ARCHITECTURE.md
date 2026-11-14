@@ -1,6 +1,6 @@
 # PROJECT_ARCHITECTURE.md — Tsag-uur
 
-**Status:** Phase 1 map-first frontend, live-forecast Herder Mode, and Farmer Intelligence Mode demo implemented. University WRF ingestion and backend services are not implemented yet.
+**Status:** Phase 1 map-first frontend with a temporary live NOAA GFS/Open-Meteo grid, live-forecast Herder Mode, and Farmer Intelligence Mode demo implemented. University WRF ingestion and backend services are not implemented yet.
 **Budget:** $0 incremental software/service spend for initial development.
 **Audience:** Citizens, Mongolian herders, researchers.
 **Purpose:** Turn meteorological model outputs into understandable forecasts, explainable risk context, and scientific exploration.
@@ -19,7 +19,8 @@ Browser (mobile-first)
    | HTTPS
 CDN / edge caching (optional free tier)
    |---- Next.js App Router: server components and small client islands
-   |---- WeatherDataProvider: synthetic explorer source now, processed WRF source later
+   |---- WeatherDataProvider: cached Open-Meteo GFS grid with explicit synthetic fallback; processed WRF source later
+   |---- /api/weather-grid: 21×11 Mongolia-area sample grid, 24 hourly steps, 30-minute upstream cache
    |---- /api/herder-forecast: validated coordinates -> Open-Meteo live forecast adapter
    |---- /api/livestock-search: last-seen point/time -> recent archived weather analysis
    |---- MapLibre GL JS (conditional dynamic import; omitted in Lite Mode)
@@ -39,7 +40,7 @@ Offline Python worker (future)
 
 The current browser implementation is intentionally backend-independent. Its typed
 `WeatherDataProvider` boundary keeps the UI, map, point sampling, and timeline stable
-when the synthetic dataset is replaced by versioned processed WRF products.
+when the temporary GFS adapter is replaced by versioned processed WRF products.
 
 ## 3. Technology decisions
 | Layer | Choice | Timing |
@@ -94,7 +95,7 @@ tsag-uur/
 Do not create empty directories solely to match this target tree.
 
 ## 6. Initial user flows
-1. Open the explorer -> Mongolia map, selected synthetic layer, and persistent demo disclosure.
+1. Open the explorer -> Mongolia map, selected GFS layer, source/validity disclosure, and an explicit synthetic fallback only when live retrieval fails.
 2. Select a known location or click a grid point -> interpolated point conditions and series.
 3. Change forecast valid time -> deterministic layer, wind, and point values update together.
 4. On a compact viewport's first visit or a data-saver connection, start in Lite Mode -> no MapLibre JavaScript or base-map tile requests; text/grid fallback remains useful and the user can explicitly enable the full map. A saved preference wins on later visits.
@@ -143,12 +144,19 @@ Future provider adapters should expose:
 ### 6.1 Current weather-layer pipeline
 
 ```text
-Synthetic analytic fields (current)
+Open-Meteo GFS point batches (temporary live source)
+  -> server-side validation and 21×11 Mongolia-area sampling grid
+  -> 24 hourly snapshots with temperature, U/V wind, precipitation,
+     snowfall, humidity, pressure and weather code provenance
+  -> synchronous in-memory WeatherDataProvider
   -> typed WeatherGrid: temperature, U/V wind, precipitation,
-     humidity, pressure, condition
+     snowfall, humidity, pressure, condition
   -> bilinear point sampling
   -> Canvas colour raster + vector-driven wind, rain, snow, and dust particles
   -> point panel + hourly timeline
+
+If the live source fails, the UI keeps the map usable with the existing
+deterministic synthetic provider and labels the entire experience as a demo fallback.
 
 Processed WRF fields (future)
   -> versioned offline conversion and validation
@@ -156,9 +164,10 @@ Processed WRF fields (future)
   -> pre-generated cacheable tiles/point series for production scale
 ```
 
-Every current value is fictional demonstration data. The UI must always show
-`DEMO — Зохиомол өгөгдөл, бодит цаг агаарын мэдээ биш`; it must not present demo
-conditions as observations, forecasts, scientific validation, or official warnings.
+Live GFS values are model forecasts, not observations or official warnings. The exact
+GFS model initialization time is not exposed by this adapter, so the UI shows retrieval
+and valid times without inventing a run time. Synthetic fallback values must always show
+`DEMO FALLBACK — Зохиомол өгөгдөл`; they must not be presented as observations or forecasts.
 
 ## 7. API sketch (future, not implemented)
 ```http
@@ -197,7 +206,7 @@ All chosen core frameworks/libraries are free/open source. Running infrastructur
 
 ## 10. Roadmap and acceptance criteria
 **P0 — Bootstrap:** scaffold runs, lint/build pass, docs committed.
-**P1 — Map-first UI foundation (implemented):** responsive explorer, real MapLibre base map, deterministic synthetic layers, wind particles, time controls, point selection, persistent demo disclosure, and zero-map-JS Lite Mode.
+**P1 — Map-first UI foundation (implemented):** responsive explorer, real MapLibre base map, temporary live GFS layers with deterministic fallback, adaptive wind/rain/snow particles, time controls, point selection, provenance disclosure, and zero-map-JS Lite Mode.
 **P2 — Data proof:** inspect real NetCDF; produce validated time series for one grid cell and document units/provenance.
 **P3 — API integration:** FastAPI returns processed point forecast; Next.js displays it with loading/error/empty states.
 **P4 — Validated explorer:** connect processed forecast products, validate layer semantics, complete audience-specific workflows, and add permitted export/research tools.
@@ -218,3 +227,4 @@ All chosen core frameworks/libraries are free/open source. Running infrastructur
 - **ADR-012:** Agricultural advisory results must separate weather-suitable windows from agronomic readiness; FAO-56 water-balance outputs remain unavailable until required inputs and validation exist.
 - **ADR-013:** Open-Meteo is a temporary, zero-account Herder Mode forecast adapter. It is not an official Mongolian warning feed and can later be replaced behind the route boundary by validated university WRF products.
 - **ADR-014:** Missing-livestock areas are ordered inspection hypotheses, not probability surfaces. Weather influence uses recent archived model data; reported direction and search distance remain explicit herder inputs.
+- **ADR-015:** The public explorer temporarily samples NOAA GFS through the Open-Meteo GFS API into a coarse 21×11/24-hour grid. It is a cached, attributed forecast adapter—not an observation or official warning source—and synthetic data is retained only as an explicit availability fallback until university WRF products replace it.

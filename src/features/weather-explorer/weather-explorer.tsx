@@ -9,10 +9,13 @@ import {
 } from "react";
 
 import {
+  OpenMeteoWeatherProvider,
   syntheticWeatherProvider,
   WEATHER_LAYER_DEFINITIONS,
 } from "@/features/weather-data";
 import type {
+  WeatherDataProvider,
+  WeatherGridPayload,
   WeatherCoordinates,
   WeatherLayerId,
 } from "@/features/weather-data";
@@ -26,8 +29,9 @@ import { LiteMap } from "./lite-map";
 import { MobileBottomNav } from "./mobile-bottom-nav";
 import { WeatherPointPanel } from "./weather-point-panel";
 
-const LITE_MODE_STORAGE_KEY = "tsag-uur-lite-mode";
+const LITE_MODE_STORAGE_KEY = "tsag-uur-lite-mode-v2";
 const LITE_MODE_CHANGE_EVENT = "tsag-uur-lite-mode-change";
+type WeatherDataStatus = "loading" | "live" | "fallback";
 
 function subscribeToLiteMode(callback: () => void): () => void {
   window.addEventListener("storage", callback);
@@ -44,14 +48,14 @@ function getLiteModeSnapshot(): boolean {
     (navigator as Navigator & { connection?: { saveData?: boolean } }).connection
       ?.saveData,
   );
-  const compactViewport = window.matchMedia("(max-width: 48rem)").matches;
   return savedPreference === null
-    ? saveData || compactViewport
+    ? saveData
     : savedPreference === "true";
 }
 
 export function WeatherExplorer() {
-  const provider = syntheticWeatherProvider;
+  const [provider, setProvider] = useState<WeatherDataProvider>(syntheticWeatherProvider);
+  const [dataStatus, setDataStatus] = useState<WeatherDataStatus>("loading");
   const [activeLayer, setActiveLayer] = useState<WeatherLayerId>("temperature");
   const [activeTimeIndex, setActiveTimeIndex] = useState(0);
   const [selectedCoordinates, setSelectedCoordinates] =
@@ -62,10 +66,39 @@ export function WeatherExplorer() {
   const liteMode = useSyncExternalStore(
     subscribeToLiteMode,
     getLiteModeSnapshot,
-    () => true,
+    () => false,
   );
   const [showWindParticles, setShowWindParticles] = useState(true);
   const [mapStatusMessage, setMapStatusMessage] = useState("");
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const loadLiveGrid = async () => {
+      try {
+        const response = await fetch("/api/weather-grid", {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        const body = await response.json() as WeatherGridPayload | { readonly error?: string };
+        if (!response.ok || !("grids" in body)) {
+          throw new Error("error" in body ? body.error : "Live grid татаж чадсангүй.");
+        }
+        setProvider(new OpenMeteoWeatherProvider(body));
+        setActiveTimeIndex(0);
+        setDataStatus("live");
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        setDataStatus("fallback");
+        setMapStatusMessage(
+          error instanceof Error
+            ? `${error.message} Зохиомол demo grid түр ашиглаж байна.`
+            : "Live grid татаж чадсангүй. Зохиомол demo grid түр ашиглаж байна.",
+        );
+      }
+    };
+    void loadLiveGrid();
+    return () => controller.abort();
+  }, []);
 
   const timeStep = provider.timeSteps[activeTimeIndex] ?? provider.timeSteps[0];
   const activeLayerDefinition =
@@ -136,13 +169,18 @@ export function WeatherExplorer() {
 
       <ExplorerHeader
         onSelectCoordinates={handleCoordinateSelection}
+        metadata={provider.metadata}
+        dataStatus={dataStatus}
       />
 
       <div className="synthetic-warning" role="note">
-        <strong>DEMO</strong>
-        <span>Зохиомол өгөгдөл — бодит цаг агаарын мэдээ биш</span>
-        <span className="synthetic-warning__meta">Шинжлэх ухаанаар баталгаажаагүй</span>
+        <strong>DATA SOURCE</strong>
+        <span>NOAA GFS via Open-Meteo · тасарвал demo fallback</span>
+        <a className="synthetic-warning__meta" href="https://open-meteo.com/en/docs/gfs-api" target="_blank" rel="noreferrer">CC BY 4.0 · албан ёсны сэрэмжлүүлэг биш</a>
       </div>
+      <span className="sr-only" data-weather-status={dataStatus} aria-live="polite">
+        {dataStatus === "live" ? "GFS өгөгдөл шинэчлэгдсэн" : dataStatus === "loading" ? "GFS өгөгдөл ачаалж байна" : "Demo fallback ашиглаж байна"}
+      </span>
 
       <div className="explorer-stage">
         <button
@@ -162,7 +200,8 @@ export function WeatherExplorer() {
           onLiteModeChange={updateLiteMode}
           showWindParticles={showWindParticles}
           onWindParticlesChange={setShowWindParticles}
-          
+          metadata={provider.metadata}
+          dataStatus={dataStatus}
         />
 
         <div className="map-stage">
@@ -176,19 +215,13 @@ export function WeatherExplorer() {
               showWindParticles={showWindParticles}
               onMapStatusChange={(detail) => {
                 setMapStatusMessage(detail.message ?? "");
-                if (
-                  detail.status === "webgl-unavailable" ||
-                  detail.status === "error"
-                ) {
-                  updateLiteMode(true);
-                }
               }}
             />
           ) : (
             <LiteMap
               sample={selectedSample}
               activeLayer={activeLayerDefinition}
-              generatedAt={provider.metadata.generatedAt}
+              metadata={provider.metadata}
               onEnableFullMap={() => updateLiteMode(false)}
             />
           )}
@@ -206,7 +239,7 @@ export function WeatherExplorer() {
               {activeLayerDefinition.labelMn}
             </span>
             <span>·</span>
-            <span>{resolvedLiteMode ? "Lite" : "Interactive"}</span>
+            <span>{resolvedLiteMode ? "Lite" : dataStatus === "live" ? "GFS Live" : "Demo"}</span>
           </div>
 
           {!resolvedLiteMode ? (
@@ -243,6 +276,7 @@ export function WeatherExplorer() {
               setIsPlaying(false);
             }}
             onPlayingChange={setIsPlaying}
+            isSynthetic={provider.metadata.isSynthetic}
           />
 
           <MobileBottomNav

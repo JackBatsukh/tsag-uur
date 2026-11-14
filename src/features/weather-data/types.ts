@@ -41,6 +41,7 @@ export type WeatherLayerId =
   | "temperature"
   | "wind-speed"
   | "precipitation"
+  | "snowfall"
   | "humidity"
   | "pressure";
 
@@ -48,6 +49,7 @@ export type WeatherGridFieldKey =
   | "temperatureC"
   | "windSpeedMps"
   | "hourlyPrecipitationMm"
+  | "snowfallCm"
   | "relativeHumidityPercent"
   | "pressureHpa";
 
@@ -76,6 +78,7 @@ export interface WeatherUnits {
   readonly humidity: "%";
   readonly pressure: "hPa";
   readonly precipitation: "mm/h";
+  readonly snowfall: "cm/h";
 }
 
 export interface WeatherMetadata {
@@ -85,6 +88,8 @@ export interface WeatherMetadata {
   readonly isSynthetic: boolean;
   readonly isScientificallyValidated: boolean;
   readonly source: string;
+  readonly sourceUrl?: string;
+  readonly licence?: string;
   readonly model: string;
   readonly runTime: string;
   readonly generatedAt: string;
@@ -125,6 +130,7 @@ export interface WeatherSample {
   /** Synthetic mean sea-level pressure, not station/surface pressure. */
   readonly pressureHpa: number;
   readonly hourlyPrecipitationMm: number;
+  readonly snowfallCm: number;
   readonly condition: WeatherCondition;
 }
 
@@ -138,6 +144,7 @@ export interface WeatherGridFields {
   readonly relativeHumidityPercent: Float32Array;
   readonly pressureHpa: Float32Array;
   readonly hourlyPrecipitationMm: Float32Array;
+  readonly snowfallCm: Float32Array;
   readonly conditionCodes: Uint8Array;
 }
 
@@ -150,6 +157,30 @@ export interface WeatherGrid {
   readonly longitudeStep: number;
   readonly latitudeStep: number;
   readonly fields: WeatherGridFields;
+}
+
+export interface SerializedWeatherGridFields {
+  readonly temperatureC: readonly number[];
+  readonly windUMps: readonly number[];
+  readonly windVMps: readonly number[];
+  readonly windSpeedMps: readonly number[];
+  readonly windDirectionDegrees: readonly number[];
+  readonly relativeHumidityPercent: readonly number[];
+  readonly pressureHpa: readonly number[];
+  readonly hourlyPrecipitationMm: readonly number[];
+  readonly snowfallCm: readonly number[];
+  readonly conditionCodes: readonly number[];
+}
+
+export interface SerializedWeatherGrid {
+  readonly timeStep: WeatherTimeStep;
+  readonly fields: SerializedWeatherGridFields;
+}
+
+export interface WeatherGridPayload {
+  readonly metadata: WeatherMetadata;
+  readonly timeSteps: readonly WeatherTimeStep[];
+  readonly grids: readonly SerializedWeatherGrid[];
 }
 
 export interface WeatherPointForecast {

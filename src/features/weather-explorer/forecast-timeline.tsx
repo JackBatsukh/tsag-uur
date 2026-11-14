@@ -12,6 +12,7 @@ interface ForecastTimelineProps {
   readonly isPlaying: boolean;
   readonly onActiveIndexChange: (index: number) => void;
   readonly onPlayingChange: (playing: boolean) => void;
+  readonly isSynthetic: boolean;
 }
 
 export function ForecastTimeline({
@@ -20,6 +21,7 @@ export function ForecastTimeline({
   isPlaying,
   onActiveIndexChange,
   onPlayingChange,
+  isSynthetic,
 }: ForecastTimelineProps) {
   const active = timeSteps[activeIndex];
   const maximum = Math.max(0, timeSteps.length - 1);
@@ -29,7 +31,7 @@ export function ForecastTimeline({
       <div className="timeline-now">
         <span id="timeline-title">Хүчинтэй цаг</span>
         <strong>{active?.labelMn ?? "—"}</strong>
-        <small>ULAT · Зохиомол</small>
+        <small>ULAT · {isSynthetic ? "Зохиомол" : "GFS forecast"}</small>
       </div>
 
       <div className="timeline-controls">
@@ -53,7 +55,7 @@ export function ForecastTimeline({
 
       <div className="timeline-slider">
         <label className="sr-only" htmlFor="forecast-time-range">
-          Forecast demo цаг сонгох
+          Forecast цаг сонгох
         </label>
         <input
           id="forecast-time-range"

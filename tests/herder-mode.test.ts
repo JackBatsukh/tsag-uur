@@ -6,6 +6,7 @@ import {
   buildLivestockSearchAreas,
   chooseDirection,
   directionalCoordinates,
+  forecastWindowFromTime,
   isSevereWeatherCode,
   largestSixHourTemperatureDrop,
   summarizeDirection,
@@ -89,6 +90,14 @@ test("WMO severe codes and six-hour temperature change are surfaced", () => {
   assert.equal(weatherCodeLabelMn(95), "Аянгатай");
   const drop = largestSixHourTemperatureDrop(Array.from({ length: 8 }, (_, index) => hour(index)));
   assert.equal(drop?.amountC, 6);
+});
+
+test("road forecast windows start at the user-selected departure hour", () => {
+  const hours = Array.from({ length: 18 }, (_, index) => hour(index));
+  const selected = forecastWindowFromTime(hours, "2026-11-02T06:00:00.000Z", 12);
+  assert.equal(selected.length, 12);
+  assert.equal(selected[0]?.time, "2026-11-02T06:00:00.000Z");
+  assert.deepEqual(forecastWindowFromTime(hours, "2026-11-03T12:00:00.000Z"), []);
 });
 
 test("historical wind is converted from coming-from direction to a downwind search influence", () => {

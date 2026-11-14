@@ -11,6 +11,22 @@ export function ServiceWorkerRegistration() {
   useEffect(() => {
     if (!("serviceWorker" in navigator) || !window.isSecureContext) return;
 
+    if (process.env.NODE_ENV !== "production") {
+      void Promise.all([
+        navigator.serviceWorker.getRegistrations().then((registrations) => Promise.all(
+          registrations
+            .filter((registration) => registration.scope.startsWith(window.location.origin))
+            .map((registration) => registration.unregister()),
+        )),
+        "caches" in window
+          ? window.caches.keys().then((keys) => Promise.all(
+              keys.filter((key) => key.startsWith("tsag-uur-")).map((key) => window.caches.delete(key)),
+            ))
+          : Promise.resolve([]),
+      ]);
+      return;
+    }
+
     let cancelled = false;
     const register = () => {
       if (cancelled) return;

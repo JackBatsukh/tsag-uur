@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import * as maplibre from "maplibre-gl";
 import type {
   Map as MapLibreMap,
   Marker as MapLibreMarker,
@@ -46,7 +47,7 @@ export function WeatherMap({
   const onSelectRef = useRef(onSelectCoordinates);
   const onStatusRef = useRef(onMapStatusChange);
   const showWindParticlesRef = useRef(showWindParticles);
-  const [status, setStatus] = useState<MapEngineStatus>("idle");
+  const [status, setStatus] = useState<MapEngineStatus>("loading");
   const [statusMessage, setStatusMessage] = useState<string>();
 
   const publishStatus = (detail: MapStatusDetail) => {
@@ -74,7 +75,6 @@ export function WeatherMap({
     }
 
     let disposed = false;
-    let resizeObserver: ResizeObserver | null = null;
     let overlayFrame: number | null = null;
     let reducedMotionQuery: MediaQueryList | null = null;
 
@@ -82,7 +82,6 @@ export function WeatherMap({
 
     const initialize = async () => {
       try {
-        const maplibre = await import("maplibre-gl");
         if (disposed || !hostRef.current || !overlayRef.current || !particlesRef.current) {
           return;
         }
@@ -172,8 +171,14 @@ export function WeatherMap({
           publishStatus({ status: "ready" });
         });
 
-        map.on("move", scheduleOverlay);
+        map.on("movestart", () => {
+          overlayRef.current?.classList.add("is-moving");
+          particlesRef.current?.classList.add("is-moving");
+        });
         map.on("moveend", () => {
+          overlayRef.current?.classList.remove("is-moving");
+          particlesRef.current?.classList.remove("is-moving");
+          scheduleOverlay();
           windRendererRef.current?.refreshViewport();
         });
         map.on("resize", () => {
@@ -208,8 +213,6 @@ export function WeatherMap({
           canvas.removeEventListener("webglcontextlost", onContextLost);
         });
 
-        resizeObserver = new ResizeObserver(() => map.resize());
-        resizeObserver.observe(hostRef.current);
       } catch (error) {
         if (disposed) return;
         publishStatus({
@@ -227,7 +230,6 @@ export function WeatherMap({
     return () => {
       disposed = true;
       if (overlayFrame !== null) cancelAnimationFrame(overlayFrame);
-      resizeObserver?.disconnect();
       windRendererRef.current?.dispose();
       windRendererRef.current = null;
       overlayRendererRef.current?.dispose();
@@ -237,7 +239,7 @@ export function WeatherMap({
       mapRef.current?.remove();
       mapRef.current = null;
     };
-  }, [liteMode, provider]);
+  }, [liteMode]);
 
   useEffect(() => {
     activeLayerRef.current = activeLayer;
@@ -270,12 +272,10 @@ export function WeatherMap({
   }, [provider, timeSelector]);
 
   useEffect(() => {
-    const updateMarker = async () => {
+    const updateMarker = () => {
       const map = mapRef.current;
       if (!map || !selectedCoordinates) return;
       if (!markerRef.current) {
-        const maplibre = await import("maplibre-gl");
-        if (!mapRef.current) return;
         const element = document.createElement("div");
         element.className = "selected-location-marker";
         element.setAttribute("aria-hidden", "true");
@@ -294,25 +294,29 @@ export function WeatherMap({
         });
       }
     };
-    void updateMarker();
+    updateMarker();
   }, [selectedCoordinates]);
 
   return (
     <section
       className={["weather-map", className].filter(Boolean).join(" ")}
-      aria-label="Монгол орны интерактив цаг агаарын demo газрын зураг"
+      aria-label="Монгол орны интерактив цаг агаарын газрын зураг"
     >
       <div ref={hostRef} className="weather-map__basemap" />
       <canvas ref={overlayRef} className="weather-map__overlay" aria-hidden="true" />
       <canvas ref={particlesRef} className="weather-map__particles" aria-hidden="true" />
 
       {status !== "ready" ? (
-        <div className={`map-state map-state--${status}`} role="status">
+        <div className={`map-state map-state--${status}`} role="status" aria-label={status === "loading" ? "Газрын зураг ачаалж байна" : undefined}>
           <span className="map-state__spinner" aria-hidden="true" />
-          <strong>
-            {status === "loading" ? "Газрын зураг ачаалж байна" : "Газрын зураг боломжгүй"}
-          </strong>
-          {statusMessage ? <p>{statusMessage}</p> : null}
+          {status === "loading" ? (
+            <span className="sr-only">Газрын зураг ачаалж байна</span>
+          ) : (
+            <>
+              <strong>Газрын зураг боломжгүй</strong>
+              {statusMessage ? <p>{statusMessage}</p> : null}
+            </>
+          )}
         </div>
       ) : statusMessage ? (
         <p className="map-inline-warning" role="status">
