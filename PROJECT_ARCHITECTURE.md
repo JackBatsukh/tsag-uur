@@ -117,22 +117,25 @@ ET₀, crop-water demand, irrigation depth, or official warnings. Its decision r
 return explicit missing inputs, limitations, validity, and provenance. See
 `FARMER_MODE_RESEARCH.md` for primary sources and the FAO-56-compatible future boundary.
 
-### 6.2 Herder Mode data flow
+### 6.2 Herder Mode 2.0 data flow
 
 ```text
-User-approved browser location or entered coordinates
-  -> validated Next.js route input
-  -> Open-Meteo Best Match current + 36-hour forecast
-  -> center point plus north/east/south/west points 12 km away
-  -> transparent 12-hour comparison by user-selected priority
-  -> current conditions, 24-hour change summary, 36-hour timeline
-  -> missing-livestock last-seen point/time (browser storage only)
-  -> up to 168 hours of recent archived model weather
-  -> explainable downwind influence + user-sized search sectors
-  -> MapLibre search map and editable last-seen point
+Task-first mobile home
+  -> SOS: explicit call/copy/share/SMS actions; no automatic dispatch
+  -> missing livestock: browser-local draft + trusted-contact gate
+       -> up to 168 hours of archived model weather
+       -> explainable downwind influence + user-sized search sectors
+       -> MapLibre search map loaded only after explicit request
+  -> missing person: authorized browser-local planning draft only
+  -> fire: server-held NASA FIRMS key -> normalized VIIRS hotspots
+  -> weather: validated coordinates -> Open-Meteo current + 24 hours
+  -> road: two endpoint forecasts; no routing or closure claim
+  -> community report: local Draft state pending moderation backend
 ```
 
-The pasture comparison never generates a confidence score or official warning. It ranks one raw weather metric selected by the herder: lowest forecast gust, lowest precipitation total, or highest minimum apparent temperature. The missing-livestock workflow converts each archived hourly wind from its meteorological “from” direction to downwind flow, weights the circular mean by gust and precipitation/snow context, and displays reported, weather-influenced, nearby, and alternative search areas. Search distance is entered by the herder; it is not inferred as animal travel distance. Neither workflow measures grass, water, snow depth, ice, terrain, road access, or carrying capacity. See `HERDER_MODE_RESEARCH.md`.
+All sensitive person/livestock drafts remain on the current device. The application does not expose a public missing-person database, does not auto-send SOS or neighbor alerts, and does not claim delivery without a configured provider. The missing-livestock workflow converts each archived hourly wind from its meteorological “from” direction to downwind flow and displays ordered inspection hypotheses rather than probabilities. Search distance is entered by the herder; it is not inferred as animal travel distance. See `HERDER_MODE_RESEARCH.md` and `HERDER_MODE_2_REPORT.md`.
+
+NASA FIRMS credentials are server-only. Without `NASA_FIRMS_MAP_KEY`, the API returns an explicit unconfigured state and no synthetic hotspots. FIRMS points are always labeled satellite thermal detections, not confirmed wildfire boundaries. Verify.mn remains behind a provider boundary because its documented flow is user-originated SMS verification/event delivery, not general outbound alert broadcasting. A separate supported provider and backend are required before real neighbor SMS or push delivery can be enabled.
 
 Future provider adapters should expose:
 
@@ -182,6 +185,7 @@ Use versioned, cacheable responses. Validate all inputs. No personal location co
 ## 8. Performance, reliability, security
 - Web Vitals goals: LCP <= 2.5s, INP <= 200ms, CLS <= 0.1 (p75); test on low-end Android/slow network.
 - Map/chart JS is dynamically imported; avoid layout shifts; provide non-WebGL fallback.
+- Herder task views are route-local dynamic chunks. The root explorer link disables automatic prefetch so Herder home does not fetch map code until the user navigates.
 - Cache immutable forecast products and tiles at CDN/object storage; invalidate by run/version.
 - Load test realistic traffic; 1,000 concurrent users is a **test scenario**, not a promised capacity.
 - Security: TLS, secure headers/CSP, OWASP controls, input validation, rate limits, secrets management, dependency scanning, backup/recovery.
@@ -228,3 +232,7 @@ All chosen core frameworks/libraries are free/open source. Running infrastructur
 - **ADR-013:** Open-Meteo is a temporary, zero-account Herder Mode forecast adapter. It is not an official Mongolian warning feed and can later be replaced behind the route boundary by validated university WRF products.
 - **ADR-014:** Missing-livestock areas are ordered inspection hypotheses, not probability surfaces. Weather influence uses recent archived model data; reported direction and search distance remain explicit herder inputs.
 - **ADR-015:** The public explorer temporarily samples NOAA GFS through the Open-Meteo GFS API into a coarse 21×11/24-hour grid. It is a cached, attributed forecast adapter—not an observation or official warning source—and synthetic data is retained only as an explicit availability fallback until university WRF products replace it.
+- **ADR-016:** Herder Mode 2.0 is task-first. Emergency, search, fire, road, report, and profile views are dynamically loaded only after explicit user navigation.
+- **ADR-017:** Sensitive Herder drafts remain browser-local until authenticated storage, moderation, retention, deletion, and abuse controls are implemented. Service Worker routes never cache `/api/*` responses.
+- **ADR-018:** Manual share providers may report only `ready/opened/unknown`; `sent/delivered` require confirmation from a real delivery provider.
+- **ADR-019:** NASA FIRMS VIIRS points are satellite thermal detections, never official wildfire boundaries. Missing credentials produce an empty unconfigured state, not a demo emergency.

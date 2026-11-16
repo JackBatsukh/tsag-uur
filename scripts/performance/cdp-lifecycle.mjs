@@ -321,6 +321,15 @@ try {
           litePreference: localStorage.getItem("tsag-uur-lite-mode-v2"),
           weatherMapCount: document.querySelectorAll(".weather-map").length,
           mapCanvasCount: document.querySelectorAll(".maplibregl-canvas").length,
+          basemapSize: (() => {
+            const basemap = document.querySelector(".weather-map__basemap");
+            if (!basemap) return null;
+            const bounds = basemap.getBoundingClientRect();
+            return {
+              width: Math.round(bounds.width),
+              height: Math.round(bounds.height),
+            };
+          })(),
           liteMapCount: document.querySelectorAll(".lite-map").length,
           stateText: document.querySelector(".map-state")?.textContent?.trim() ?? "",
           dataKind: document.querySelector("[data-weather-status]")?.getAttribute("data-weather-status") ?? "",
@@ -376,6 +385,14 @@ try {
   }
   if (!liteMode && summary.map.mapCanvasCount !== 1) {
     failures.push("interactive map canvas did not initialize");
+  }
+  if (
+    !liteMode &&
+    (!summary.map.basemapSize ||
+      summary.map.basemapSize.width <= 0 ||
+      summary.map.basemapSize.height <= 0)
+  ) {
+    failures.push("interactive map container has no visible area");
   }
   if (!liteMode && summary.map.stateText) {
     failures.push("interactive map did not reach its ready state");

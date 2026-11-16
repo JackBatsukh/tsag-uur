@@ -60,6 +60,19 @@ export function ExplorerSidebar({
         </button>
       </div>
 
+      <div className="sidebar-primary-action">
+        <Link href="/dashboard#model" onClick={onClose}>
+          <span className="sidebar-primary-action__icon" aria-hidden="true">
+            <InfoCircleIcon />
+          </span>
+          <span>
+            <strong>Өгөгдлийн дэлгэрэнгүй</strong>
+            <small>Эх сурвалж, загвар, шинэчлэгдсэн хугацаа</small>
+          </span>
+          <span className="sidebar-primary-action__arrow" aria-hidden="true">→</span>
+        </Link>
+      </div>
+
       <div className="layer-list" role="group" aria-label="Өгөгдлийн давхарга">
         {WEATHER_LAYER_DEFINITIONS.map((layer) => (
           <button
@@ -166,7 +179,6 @@ export function ExplorerSidebar({
       </div>
 
       <div className="sidebar-footer-actions">
-        <a href="/dashboard#model">Өгөгдлийн дэлгэрэнгүй</a>
         <button type="button" disabled>Тохиргоо · Дараа</button>
       </div>
     </aside>

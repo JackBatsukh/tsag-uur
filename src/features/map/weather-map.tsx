@@ -75,6 +75,8 @@ export function WeatherMap({
     }
 
     let disposed = false;
+    let resizeObserver: ResizeObserver | null = null;
+    let resizeFrame: number | null = null;
     let overlayFrame: number | null = null;
     let reducedMotionQuery: MediaQueryList | null = null;
 
@@ -116,6 +118,7 @@ export function WeatherMap({
           pitchWithRotate: false,
           renderWorldCopies: false,
           attributionControl: { compact: true },
+          fadeDuration: 0,
         });
         mapRef.current = map;
         overlayRendererRef.current = new WeatherOverlayRenderer(
@@ -213,6 +216,38 @@ export function WeatherMap({
           canvas.removeEventListener("webglcontextlost", onContextLost);
         });
 
+        let observedWidth = Math.round(hostRef.current.clientWidth);
+        let observedHeight = Math.round(hostRef.current.clientHeight);
+        resizeObserver = new ResizeObserver((entries) => {
+          const entry = entries[0];
+          if (!entry || disposed) return;
+          const width = Math.round(entry.contentRect.width);
+          const height = Math.round(entry.contentRect.height);
+          if (
+            width <= 0 ||
+            height <= 0 ||
+            (width === observedWidth && height === observedHeight)
+          ) {
+            return;
+          }
+          observedWidth = width;
+          observedHeight = height;
+          if (resizeFrame !== null) cancelAnimationFrame(resizeFrame);
+          resizeFrame = requestAnimationFrame(() => {
+            resizeFrame = null;
+            if (!disposed) map.resize();
+          });
+        });
+        resizeObserver.observe(hostRef.current);
+
+        // Dynamic CSS and mobile viewport units can settle after MapLibre reads
+        // its initial container size. Re-measure once on the next frame even if
+        // ResizeObserver has not emitted yet.
+        resizeFrame = requestAnimationFrame(() => {
+          resizeFrame = null;
+          if (!disposed) map.resize();
+        });
+
       } catch (error) {
         if (disposed) return;
         publishStatus({
@@ -229,7 +264,9 @@ export function WeatherMap({
 
     return () => {
       disposed = true;
+      if (resizeFrame !== null) cancelAnimationFrame(resizeFrame);
       if (overlayFrame !== null) cancelAnimationFrame(overlayFrame);
+      resizeObserver?.disconnect();
       windRendererRef.current?.dispose();
       windRendererRef.current = null;
       overlayRendererRef.current?.dispose();

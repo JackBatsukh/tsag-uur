@@ -8,14 +8,9 @@ export function SiteFooter() {
           <BrandMark />
           <div>
             <strong>Tsag-uur</strong>
-            <span>Монголын цаг агаарын мэдээллийг илүү ойлгомжтой болгоно.</span>
+            <span>Монголын цаг агаарын мэдээллийг малчид, иргэд, тариаланч, судлаачидад илүү ойлгомжтой байдлаар харуулна.</span>
           </div>
         </div>
-        {/* <p>
-          Phase 1 · UI prototype
-          <span aria-hidden="true">•</span>
-          Бүх утга зохиомол жишээ
-        </p> */}
       </div>
     </footer>
   );

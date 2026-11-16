@@ -41,7 +41,7 @@ export function HerderMode() {
 
   return <div className="herder-app">
     <a className="skip-link" href="#herder-main">Үндсэн хэсэг рүү очих</a>
-    <header className="herder-header"><button className="brand-button" type="button" onClick={() => openView("home")} aria-label="Малчин горимын нүүр"><span className="brand-mark"><SpriteIcon name="brand" /></span><span><strong>Tsag-uur</strong><small>Малчин</small></span></button><div className={`header-network ${online ? "is-online" : "is-offline"}`}><span />{online ? "Сүлжээтэй" : "Офлайн"}</div><Link className="explorer-link" href="/"><SpriteIcon name="map" />Ерөнхий зураг</Link></header>
+    <header className="herder-header"><button className="brand-button" type="button" onClick={() => openView("home")} aria-label="Малчин горимын нүүр"><span className="brand-mark"><SpriteIcon name="brand" /></span><span><strong>Tsag-uur</strong><small>Малчин</small></span></button><div className={`header-network ${online ? "is-online" : "is-offline"}`}><span />{online ? "Сүлжээтэй" : "Офлайн"}</div><Link className="explorer-link" href="/" prefetch={false}><SpriteIcon name="map" />Ерөнхий зураг</Link></header>
     <main id="herder-main" className="herder-main">
       {view === "home" ? <HerderHome online={online} openView={openView} /> : null}
       {view === "sos" ? <SosView contacts={contacts} onBack={back} /> : null}
@@ -49,6 +49,6 @@ export function HerderMode() {
       {view === "fire" || view === "weather" || view === "road" ? <ConditionsViews view={view} onBack={back} /> : null}
       {view === "report" || view === "notifications" || view === "profile" ? <CommunityViews view={view} contacts={contacts} setContacts={setContacts} onBack={back} /> : null}
     </main>
-    <nav className="herder-bottom-nav" aria-label="Үндсэн цэс"><button className={view === "home" ? "active" : ""} type="button" onClick={() => openView("home")}><SpriteIcon name="home" /><span>Нүүр</span></button><Link href="/"><SpriteIcon name="map" /><span>Газрын зураг</span></Link><button className={view === "notifications" ? "active" : ""} type="button" onClick={() => openView("notifications")}><SpriteIcon name="bell" /><span>Мэдэгдэл</span></button><button className={view === "profile" ? "active" : ""} type="button" onClick={() => openView("profile")}><SpriteIcon name="person" /><span>Миний хэсэг</span></button></nav>
+    <nav className="herder-bottom-nav" aria-label="Үндсэн цэс"><button className={view === "home" ? "active" : ""} type="button" onClick={() => openView("home")}><SpriteIcon name="home" /><span>Нүүр</span></button><Link href="/" prefetch={false}><SpriteIcon name="map" /><span>Газрын зураг</span></Link><button className={view === "notifications" ? "active" : ""} type="button" onClick={() => openView("notifications")}><SpriteIcon name="bell" /><span>Мэдэгдэл</span></button><button className={view === "profile" ? "active" : ""} type="button" onClick={() => openView("profile")}><SpriteIcon name="person" /><span>Миний хэсэг</span></button></nav>
   </div>;
 }
