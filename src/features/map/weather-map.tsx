@@ -78,6 +78,7 @@ export function WeatherMap({
     let resizeObserver: ResizeObserver | null = null;
     let resizeFrame: number | null = null;
     let overlayFrame: number | null = null;
+    let initializeTimer: number | null = null;
     let reducedMotionQuery: MediaQueryList | null = null;
 
     publishStatus({ status: "loading", message: "Газрын зураг ачаалж байна…" });
@@ -260,10 +261,17 @@ export function WeatherMap({
       }
     };
 
-    void initialize();
+    // Let React finish its hydration/commit task before MapLibre performs its
+    // synchronous WebGL setup. Keeping those two workloads in separate tasks
+    // avoids one oversized main-thread block on slower mobile CPUs.
+    initializeTimer = window.setTimeout(() => {
+      initializeTimer = null;
+      void initialize();
+    }, 0);
 
     return () => {
       disposed = true;
+      if (initializeTimer !== null) window.clearTimeout(initializeTimer);
       if (resizeFrame !== null) cancelAnimationFrame(resizeFrame);
       if (overlayFrame !== null) cancelAnimationFrame(overlayFrame);
       resizeObserver?.disconnect();

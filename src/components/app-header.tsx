@@ -6,7 +6,7 @@ const navigationItems = [
   { href: "/", label: "Цаг агаар" },
   { href: "/herder", label: "Малчин" },
   { href: "/farmer", label: "Тариаланч" },
-  { href: "/dashboard", label: "Текстэн самбар" },
+  { href: "/dashboard", label: "Мэдээ" },
 ] as const;
 
 export function AppHeader() {
@@ -32,11 +32,6 @@ export function AppHeader() {
             ))}
           </ul>
         </nav>
-
-        {/* <div className="environment-badge" title="Энэ хувилбар бодит өгөгдөл ашиглахгүй">
-          <span className="environment-badge__dot" aria-hidden="true" />
-          Demo орчин
-        </div> */}
       </div>
     </header>
   );

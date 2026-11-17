@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
@@ -149,6 +149,8 @@ async function evaluate(client, expression) {
 }
 
 const server = await startProductionServer();
+const viewportWidth = Number(process.env.TSAG_UUR_PERF_WIDTH ?? 390);
+const viewportHeight = Number(process.env.TSAG_UUR_PERF_HEIGHT ?? 844);
 let browser;
 let client;
 try {
@@ -191,10 +193,10 @@ try {
     client.send("Log.enable"),
     client.send("Page.setLifecycleEventsEnabled", { enabled: true }),
     client.send("Emulation.setDeviceMetricsOverride", {
-      width: 390,
-      height: 844,
+      width: viewportWidth,
+      height: viewportHeight,
       deviceScaleFactor: 1,
-      mobile: true,
+      mobile: viewportWidth <= 768,
     }),
     client.send("Emulation.setCPUThrottlingRate", { rate: 4 }),
     client.send("Network.emulateNetworkConditions", {
@@ -292,6 +294,18 @@ try {
     `(async () => {
       const navigation = performance.getEntriesByType("navigation")[0];
       const resources = performance.getEntriesByType("resource");
+      const dimensions = (element) => {
+        if (!element) return null;
+        const rect = element.getBoundingClientRect();
+        return {
+          width: Math.round(rect.width),
+          height: Math.round(rect.height),
+          top: Math.round(rect.top),
+          left: Math.round(rect.left),
+          backingWidth: "width" in element ? element.width : null,
+          backingHeight: "height" in element ? element.height : null,
+        };
+      };
       const serviceWorkerReady = "serviceWorker" in navigator
         ? await Promise.race([
             navigator.serviceWorker.ready.then(() => true).catch(() => false),
@@ -333,11 +347,29 @@ try {
           liteMapCount: document.querySelectorAll(".lite-map").length,
           stateText: document.querySelector(".map-state")?.textContent?.trim() ?? "",
           dataKind: document.querySelector("[data-weather-status]")?.getAttribute("data-weather-status") ?? "",
+          dimensions: {
+            stage: dimensions(document.querySelector(".map-stage")),
+            host: dimensions(document.querySelector(".weather-map__basemap")),
+            mapCanvas: dimensions(document.querySelector(".maplibregl-canvas")),
+            overlay: dimensions(document.querySelector(".weather-map__overlay")),
+          },
         },
         serviceWorkerReady,
       };
     })()`,
   );
+  const screenshotSetting = process.env.TSAG_UUR_PERF_SCREENSHOT;
+  let screenshotPath = null;
+  if (screenshotSetting) {
+    screenshotPath = path.resolve(screenshotSetting);
+    await mkdir(path.dirname(screenshotPath), { recursive: true });
+    const capture = await client.send("Page.captureScreenshot", {
+      format: "png",
+      fromSurface: true,
+      captureBeyondViewport: false,
+    });
+    await writeFile(screenshotPath, Buffer.from(capture.data, "base64"));
+  }
   const cdpMetrics = await client.send("Performance.getMetrics");
   const metric = Object.fromEntries(cdpMetrics.metrics.map((item) => [item.name, item.value]));
   const summary = {
@@ -368,6 +400,7 @@ try {
     pageErrors,
     browserErrors,
     failedRequests,
+    screenshotPath,
   };
   console.dir(summary, { depth: null });
 
@@ -396,6 +429,16 @@ try {
   }
   if (!liteMode && summary.map.stateText) {
     failures.push("interactive map did not reach its ready state");
+  }
+  if (!liteMode) {
+    const { stage, host, mapCanvas, overlay } = summary.map.dimensions;
+    const fillsStage = (value) => value
+      && stage
+      && Math.abs(value.width - stage.width) <= 2
+      && Math.abs(value.height - stage.height) <= 2;
+    if (![host, mapCanvas, overlay].every(fillsStage)) {
+      failures.push("map canvases do not fill the map stage");
+    }
   }
   if (!liteMode && !summary.resources.mapRequests.some((url) => /tile\.openstreetmap\.org/i.test(url))) {
     failures.push("OpenStreetMap tiles were not requested");
