@@ -1,14 +1,15 @@
 import {
   MONGOLIA_WEATHER_BOUNDS,
   SYNTHETIC_WEATHER_UNITS,
-} from "./constants";
+} from "./constants.ts";
 import {
+  cardinalFromDegrees,
   conditionToCode,
   containsCoordinates,
   resolveWeatherCondition,
   sampleWeatherGrid,
   windDirectionFromComponents,
-} from "./interpolation";
+} from "./interpolation.ts";
 import type {
   WeatherBounds,
   WeatherDataProvider,
@@ -19,7 +20,7 @@ import type {
   WeatherSample,
   WeatherTimeSelector,
   WeatherTimeStep,
-} from "./types";
+} from "./types.ts";
 
 const DEFAULT_START_TIME = "2026-10-18T12:00:00.000Z";
 const DEFAULT_RUN_TIME = "2026-10-18T09:00:00.000Z";
@@ -357,7 +358,17 @@ export class SyntheticWeatherProvider implements WeatherDataProvider {
     longitude: number,
     time: WeatherTimeSelector,
   ): WeatherSample | null {
-    return sampleWeatherGrid(this.getGrid(time), latitude, longitude);
+    if (!this.contains(latitude, longitude)) {
+      return null;
+    }
+
+    const timeStep = this.#resolveTimeStep(time);
+    const cachedGrid = this.#gridCache.get(timeStep.index);
+    if (cachedGrid) {
+      return sampleWeatherGrid(cachedGrid, latitude, longitude);
+    }
+
+    return this.#sampleAnalyticGrid(latitude, longitude, timeStep);
   }
 
   getPointForecast(
@@ -403,6 +414,88 @@ export class SyntheticWeatherProvider implements WeatherDataProvider {
       throw new RangeError(`Unknown weather time selector: ${key}`);
     }
     return timeStep;
+  }
+
+  /**
+   * Sample the four surrounding analytic cells without materialising the full
+   * 113×49 fallback grid. Math.fround mirrors the Float32Array writes in
+   * #generateGrid, so this fast path produces the same interpolated values.
+   */
+  #sampleAnalyticGrid(
+    latitude: number,
+    longitude: number,
+    timeStep: WeatherTimeStep,
+  ): WeatherSample {
+    const { bounds, gridColumns: columns, gridRows: rows } = this.metadata;
+    const longitudeStep = (bounds.east - bounds.west) / (columns - 1);
+    const latitudeStep = (bounds.north - bounds.south) / (rows - 1);
+    const fractionalColumn = (longitude - bounds.west) / longitudeStep;
+    const fractionalRow = (latitude - bounds.south) / latitudeStep;
+    const column0 = Math.min(columns - 1, Math.max(0, Math.floor(fractionalColumn)));
+    const row0 = Math.min(rows - 1, Math.max(0, Math.floor(fractionalRow)));
+    const column1 = Math.min(columns - 1, column0 + 1);
+    const row1 = Math.min(rows - 1, row0 + 1);
+    const xAmount = Math.min(1, Math.max(0, fractionalColumn - column0));
+    const yAmount = Math.min(1, Math.max(0, fractionalRow - row0));
+    const cell = (row: number, column: number): SyntheticFields =>
+      calculateSyntheticFields(
+        bounds.south + row * latitudeStep,
+        bounds.west + column * longitudeStep,
+        timeStep.offsetHours,
+        this.#startUtcHour,
+      );
+    const southwest = cell(row0, column0);
+    const southeast = column1 === column0 ? southwest : cell(row0, column1);
+    const northwest = row1 === row0 ? southwest : cell(row1, column0);
+    const northeast = row1 === row0
+      ? southeast
+      : column1 === column0
+        ? northwest
+        : cell(row1, column1);
+    const lerp = (start: number, end: number, amount: number): number =>
+      start + (end - start) * amount;
+    const interpolate = (field: keyof SyntheticFields): number =>
+      lerp(
+        lerp(Math.fround(southwest[field]), Math.fround(southeast[field]), xAmount),
+        lerp(Math.fround(northwest[field]), Math.fround(northeast[field]), xAmount),
+        yAmount,
+      );
+
+    const temperatureC = interpolate("temperatureC");
+    const windUMps = interpolate("windUMps");
+    const windVMps = interpolate("windVMps");
+    const windSpeedMps = Math.hypot(windUMps, windVMps);
+    const windDirectionDegrees = windDirectionFromComponents(windUMps, windVMps);
+    const relativeHumidityPercent = interpolate("relativeHumidityPercent");
+    const pressureHpa = interpolate("pressureHpa");
+    const hourlyPrecipitationMm = interpolate("hourlyPrecipitationMm");
+    const snowfallCm = interpolate("snowfallCm");
+    const condition = resolveWeatherCondition({
+      latitude,
+      longitude,
+      temperatureC,
+      windSpeedMps,
+      relativeHumidityPercent,
+      hourlyPrecipitationMm,
+      snowfallCm,
+    });
+
+    return {
+      coordinates: { latitude, longitude },
+      timeStepId: timeStep.id,
+      validTime: timeStep.validTime,
+      temperatureC,
+      windUMps,
+      windVMps,
+      windSpeedMps,
+      windDirectionDegrees,
+      windDirectionCardinal: cardinalFromDegrees(windDirectionDegrees),
+      relativeHumidityPercent,
+      pressureHpa,
+      hourlyPrecipitationMm,
+      snowfallCm,
+      condition,
+    };
   }
 
   #generateGrid(timeStep: WeatherTimeStep): WeatherGrid {

@@ -14,6 +14,17 @@ interface LiteMapProps {
   readonly onEnableFullMap: () => void;
 }
 
+function formatUlaanbaatarTimestamp(isoTimestamp: string): string {
+  const timestamp = Date.parse(isoTimestamp);
+  if (!Number.isFinite(timestamp)) return isoTimestamp;
+  const local = new Date(timestamp + 8 * 60 * 60 * 1_000);
+  const month = String(local.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(local.getUTCDate()).padStart(2, "0");
+  const hour = String(local.getUTCHours()).padStart(2, "0");
+  const minute = String(local.getUTCMinutes()).padStart(2, "0");
+  return `${month}.${day} ${hour}:${minute}`;
+}
+
 export function LiteMap({
   sample,
   activeLayer,
@@ -45,10 +56,10 @@ export function LiteMap({
           MapLibre, OpenStreetMap tile болон wind animation ачаалаагүй. Текстэн цаг агаарын мэдээлэл хэвийн ажиллана.
         </p>
         <p className="lite-map__freshness">
-          Өгөгдөл татсан: <time dateTime={metadata.generatedAt}>{metadata.generatedAt}</time>
+          Шинэчилсэн: <time dateTime={metadata.generatedAt}>{formatUlaanbaatarTimestamp(metadata.generatedAt)}</time>
           {sample ? (
-            <> · Хүчинтэй: <time dateTime={sample.validTime}>{sample.validTime}</time></>
-          ) : null}
+            <> · Хүчинтэй: <time dateTime={sample.validTime}>{formatUlaanbaatarTimestamp(sample.validTime)}</time></>
+          ) : null} ULAT
         </p>
         {sample ? (
           <div className="lite-map__selection">

@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { WEATHER_LAYER_DEFINITIONS } from "../src/features/weather-data/constants.ts";
 import { OpenMeteoWeatherProvider } from "../src/features/weather-data/open-meteo-weather-provider.ts";
+import { SyntheticWeatherProvider } from "../src/features/weather-data/synthetic-weather-provider.ts";
 import type {
   SerializedWeatherGridFields,
   WeatherGridPayload,
@@ -94,4 +95,16 @@ test("Open-Meteo provider rejects malformed grid lengths", () => {
     grids: [{ ...first, fields: { ...first.fields, snowfallCm: [0] } }, malformed.grids[1]!],
   };
   assert.throws(() => new OpenMeteoWeatherProvider(broken), /snowfallCm/);
+});
+
+test("synthetic point fast path matches full-grid interpolation exactly", () => {
+  const provider = new SyntheticWeatherProvider();
+  const latitude = 47.919;
+  const longitude = 106.918;
+  const fastSample = provider.sample(latitude, longitude, 0);
+
+  provider.getGrid(0);
+  const gridSample = provider.sample(latitude, longitude, 0);
+
+  assert.deepEqual(fastSample, gridSample);
 });

@@ -229,24 +229,28 @@ async function runInteractionProfile(client) {
     client,
     `(async () => {
       const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      const waitFor = async (predicate, timeoutMs = 5_000) => {
+        const startedAt = performance.now();
+        while (!predicate() && performance.now() - startedAt < timeoutMs) {
+          await pause(100);
+        }
+        return predicate();
+      };
       for (const button of document.querySelectorAll(".layer-option:not(:disabled)")) {
         button.click();
         await pause(120);
       }
-      for (let index = 0; index < 3; index += 1) {
+      const liteToggle = document.querySelector(".sidebar-toggles input[type=checkbox]");
+      for (let index = 0; index < 3 && liteToggle; index += 1) {
+        if (liteToggle.checked) liteToggle.click();
+        await waitFor(() => Boolean(document.querySelector(".maplibregl-canvas")));
         document.querySelector(".maplibregl-ctrl-zoom-in")?.click();
         await pause(100);
         document.querySelector(".maplibregl-ctrl-zoom-out")?.click();
         await pause(100);
-      }
-      const liteToggle = document.querySelector(".sidebar-toggles input[type=checkbox]");
-      for (let index = 0; index < 3 && liteToggle; index += 1) {
-        liteToggle.click();
-        await pause(350);
-        liteToggle.click();
-        const startedAt = performance.now();
-        while (!document.querySelector(".maplibregl-canvas") && performance.now() - startedAt < 5_000) {
-          await pause(100);
+        if (index < 2) {
+          liteToggle.click();
+          await waitFor(() => !document.querySelector(".maplibregl-canvas"));
         }
       }
       return true;
@@ -363,18 +367,50 @@ try {
   await client.send("Page.addScriptToEvaluateOnNewDocument", {
     source: `
       try { localStorage.setItem("tsag-uur-lite-mode-v2", ${JSON.stringify(String(liteMode))}); } catch {}
-      globalThis.__tsagUurPerf = { lcp: 0, lcpElement: "", cls: 0, longTaskCount: 0, longTaskDuration: 0 };
+      globalThis.__tsagUurPerf = {
+        lcp: 0,
+        lcpElement: "",
+        lcpEntries: [],
+        dataReadyMs: 0,
+        cls: 0,
+        longTaskCount: 0,
+        longTaskDuration: 0,
+      };
       try {
         new PerformanceObserver((list) => {
-          const entries = list.getEntries();
-          const last = entries[entries.length - 1];
-          if (last) {
-            globalThis.__tsagUurPerf.lcp = last.startTime;
-            globalThis.__tsagUurPerf.lcpElement = last.element
-              ? last.element.tagName.toLowerCase() + "." + String(last.element.className || "").trim()
+          for (const entry of list.getEntries()) {
+            const element = entry.element;
+            globalThis.__tsagUurPerf.lcp = entry.startTime;
+            globalThis.__tsagUurPerf.lcpElement = element
+              ? element.tagName.toLowerCase() + "." + String(element.className || "").trim()
               : "";
+            globalThis.__tsagUurPerf.lcpEntries.push({
+              time: entry.startTime,
+              size: entry.size,
+              element: globalThis.__tsagUurPerf.lcpElement,
+              text: element?.textContent?.trim().slice(0, 120) || "",
+            });
           }
         }).observe({ type: "largest-contentful-paint", buffered: true });
+        const observeDataStatus = () => {
+          const status = document.querySelector("[data-weather-status]");
+          if (!status) return;
+          const recordReady = () => {
+            if (status.getAttribute("data-weather-status") !== "loading") {
+              globalThis.__tsagUurPerf.dataReadyMs ||= performance.now();
+            }
+          };
+          recordReady();
+          new MutationObserver(recordReady).observe(status, {
+            attributes: true,
+            attributeFilter: ["data-weather-status"],
+          });
+        };
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", observeDataStatus, { once: true });
+        } else {
+          observeDataStatus();
+        }
         new PerformanceObserver((list) => {
           for (const entry of list.getEntries()) {
             if (!entry.hadRecentInput) globalThis.__tsagUurPerf.cls += entry.value;
@@ -534,6 +570,8 @@ try {
     paint: {
       lcpMs: Math.round(browserMetrics.paint.lcp),
       lcpElement: browserMetrics.paint.lcpElement,
+      lcpEntries: browserMetrics.paint.lcpEntries,
+      dataReadyMs: Math.round(browserMetrics.paint.dataReadyMs),
       cls: Number(browserMetrics.paint.cls.toFixed(3)),
       longTaskCount: browserMetrics.paint.longTaskCount,
       longTaskDurationMs: Math.round(browserMetrics.paint.longTaskDuration),
