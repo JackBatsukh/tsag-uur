@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  startTransition,
   useCallback,
   useEffect,
   useMemo,
@@ -49,7 +50,7 @@ function getLiteModeSnapshot(): boolean {
       ?.saveData,
   );
   return savedPreference === null
-    ? saveData
+    ? saveData || window.matchMedia("(max-width: 48rem)").matches
     : savedPreference === "true";
 }
 
@@ -66,7 +67,11 @@ export function WeatherExplorer() {
   const liteMode = useSyncExternalStore(
     subscribeToLiteMode,
     getLiteModeSnapshot,
-    () => false,
+    // Render the lightweight map during SSR/hydration. The browser switches
+    // desktop users to the full map immediately after reading their viewport
+    // and saved preference, without speculatively downloading MapLibre on
+    // first-visit mobile sessions.
+    () => true,
   );
   const [showWindParticles, setShowWindParticles] = useState(true);
   const [mapStatusMessage, setMapStatusMessage] = useState("");
@@ -76,16 +81,18 @@ export function WeatherExplorer() {
     const loadLiveGrid = async () => {
       try {
         const response = await fetch("/api/weather-grid", {
-          cache: "no-store",
           signal: controller.signal,
         });
         const body = await response.json() as WeatherGridPayload | { readonly error?: string };
         if (!response.ok || !("grids" in body)) {
           throw new Error("error" in body ? body.error : "Live grid татаж чадсангүй.");
         }
-        setProvider(new OpenMeteoWeatherProvider(body));
-        setActiveTimeIndex(0);
-        setDataStatus("live");
+        const liveProvider = new OpenMeteoWeatherProvider(body);
+        startTransition(() => {
+          setProvider(liveProvider);
+          setActiveTimeIndex(0);
+          setDataStatus("live");
+        });
       } catch (error) {
         if (controller.signal.aborted) return;
         setDataStatus("fallback");

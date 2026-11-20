@@ -79,6 +79,8 @@ export function WeatherMap({
     let resizeFrame: number | null = null;
     let overlayFrame: number | null = null;
     let initializeTimer: number | null = null;
+    let windIdleHandle: number | null = null;
+    let windInitializeTimer: ReturnType<typeof setTimeout> | null = null;
     let reducedMotionQuery: MediaQueryList | null = null;
 
     publishStatus({ status: "loading", message: "Газрын зураг ачаалж байна…" });
@@ -94,15 +96,6 @@ export function WeatherMap({
             import.meta.url,
           ).toString(),
         );
-        const capabilityCanvas = document.createElement("canvas");
-        if (!capabilityCanvas.getContext("webgl2")) {
-          publishStatus({
-            status: "webgl-unavailable",
-            message: "Энэ төхөөрөмж WebGL 2 дэмжихгүй байна. Lite Mode ашиглана уу.",
-          });
-          return;
-        }
-
         const map = new maplibre.Map({
           container: hostRef.current,
           style: createBasemapStyle(),
@@ -154,25 +147,38 @@ export function WeatherMap({
 
         map.on("load", () => {
           if (disposed || !particlesRef.current) return;
-          reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-          windRendererRef.current = new WindParticleRenderer(
-            map,
-            particlesRef.current,
-            gridRef.current,
-            {
-              enabled: showWindParticlesRef.current,
-              reducedMotion: reducedMotionQuery.matches,
-            },
-          );
-          const onMotionChange = (event: MediaQueryListEvent) => {
-            windRendererRef.current?.setReducedMotion(event.matches);
-          };
-          reducedMotionQuery.addEventListener("change", onMotionChange);
-          map.once("remove", () => {
-            reducedMotionQuery?.removeEventListener("change", onMotionChange);
-          });
           scheduleOverlay();
           publishStatus({ status: "ready" });
+
+          const initializeWind = () => {
+            windIdleHandle = null;
+            windInitializeTimer = null;
+            if (disposed || !particlesRef.current) return;
+            reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+            windRendererRef.current = new WindParticleRenderer(
+              map,
+              particlesRef.current,
+              gridRef.current,
+              {
+                enabled: showWindParticlesRef.current,
+                reducedMotion: reducedMotionQuery.matches,
+              },
+            );
+            const onMotionChange = (event: MediaQueryListEvent) => {
+              windRendererRef.current?.setReducedMotion(event.matches);
+            };
+            reducedMotionQuery.addEventListener("change", onMotionChange);
+            map.once("remove", () => {
+              reducedMotionQuery?.removeEventListener("change", onMotionChange);
+            });
+          };
+          if ("requestIdleCallback" in window) {
+            windIdleHandle = window.requestIdleCallback(initializeWind, {
+              timeout: 1_000,
+            });
+          } else {
+            windInitializeTimer = setTimeout(initializeWind, 200);
+          }
         });
 
         map.on("movestart", () => {
@@ -251,10 +257,13 @@ export function WeatherMap({
 
       } catch (error) {
         if (disposed) return;
+        const gpuUnavailable = error instanceof maplibre.GPUInitializationError;
         publishStatus({
-          status: "error",
+          status: gpuUnavailable ? "webgl-unavailable" : "error",
           message:
-            error instanceof Error
+            gpuUnavailable
+              ? "Энэ төхөөрөмж WebGL дэмжихгүй байна. Lite Mode ашиглана уу."
+              : error instanceof Error
               ? `Газрын зургийг эхлүүлж чадсангүй: ${error.message}`
               : "Газрын зургийг эхлүүлж чадсангүй.",
         });
@@ -272,6 +281,10 @@ export function WeatherMap({
     return () => {
       disposed = true;
       if (initializeTimer !== null) window.clearTimeout(initializeTimer);
+      if (windInitializeTimer !== null) clearTimeout(windInitializeTimer);
+      if (windIdleHandle !== null) {
+        window.cancelIdleCallback(windIdleHandle);
+      }
       if (resizeFrame !== null) cancelAnimationFrame(resizeFrame);
       if (overlayFrame !== null) cancelAnimationFrame(overlayFrame);
       resizeObserver?.disconnect();

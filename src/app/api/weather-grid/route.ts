@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { gzipSync } from "node:zlib";
 
 import {
   MONGOLIA_WEATHER_BOUNDS,
@@ -54,6 +54,46 @@ interface GridPoint {
 interface CachedPayload {
   readonly payload: WeatherGridPayload;
   readonly storedAt: number;
+}
+
+const JSON_HEADERS = {
+  "Content-Type": "application/json; charset=utf-8",
+  Vary: "Accept-Encoding",
+} as const;
+
+function acceptsGzipEncoding(value: string | null): boolean {
+  const encodings = (value ?? "").split(",").map((part) => {
+    const [name, ...parameters] = part.trim().toLowerCase().split(";");
+    const quality = parameters
+      .map((parameter) => parameter.trim().match(/^q=([0-9.]+)$/)?.[1])
+      .find(Boolean);
+    return { name, quality: quality === undefined ? 1 : Number(quality) };
+  });
+  const gzip = encodings.find((encoding) => encoding.name === "gzip");
+  if (gzip) return gzip.quality > 0;
+  return encodings.some((encoding) => encoding.name === "*" && encoding.quality > 0);
+}
+
+function jsonResponse(
+  acceptsGzip: boolean,
+  body: WeatherGridPayload | { readonly error: string },
+  init: { readonly status?: number; readonly cacheControl: string; readonly warning?: string },
+): Response {
+  const json = JSON.stringify(body);
+  const headers = new Headers({
+    ...JSON_HEADERS,
+    "Cache-Control": init.cacheControl,
+  });
+  if (init.warning) headers.set("Warning", init.warning);
+
+  if (acceptsGzip) {
+    const compressed = new Uint8Array(gzipSync(json));
+    headers.set("Content-Encoding", "gzip");
+    headers.set("Content-Length", String(compressed.byteLength));
+    return new Response(compressed, { status: init.status, headers });
+  }
+
+  return new Response(json, { status: init.status, headers });
 }
 
 let cachedPayload: CachedPayload | undefined;
@@ -275,25 +315,27 @@ async function resolveWeatherPayload(): Promise<WeatherGridPayload> {
   return activeRefresh;
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  // Read request-bound data before the error boundary so Next.js can interrupt
+  // static prerendering and correctly classify this handler as dynamic.
+  const acceptsGzip = acceptsGzipEncoding(request.headers.get("accept-encoding"));
   try {
     const payload = await resolveWeatherPayload();
-    return NextResponse.json(payload, {
-      headers: { "Cache-Control": "public, max-age=300, s-maxage=900, stale-while-revalidate=1800" },
+    return jsonResponse(acceptsGzip, payload, {
+      cacheControl: "public, max-age=300, s-maxage=900, stale-while-revalidate=1800",
     });
   } catch (error) {
     console.error("Open-Meteo grid fetch failed", error);
     if (cachedPayload && Date.now() - cachedPayload.storedAt < STALE_CACHE_MS) {
-      return NextResponse.json(cachedPayload.payload, {
-        headers: {
-          "Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=1800",
-          Warning: '110 - "Open-Meteo refresh failed; serving a recent cached grid"',
-        },
+      return jsonResponse(acceptsGzip, cachedPayload.payload, {
+        cacheControl: "public, max-age=60, s-maxage=300, stale-while-revalidate=1800",
+        warning: '110 - "Open-Meteo refresh failed; serving a recent cached grid"',
       });
     }
-    return NextResponse.json(
+    return jsonResponse(
+      acceptsGzip,
       { error: "Open-Meteo GFS урьдчилсан төлвийг одоогоор татаж чадсангүй." },
-      { status: 502, headers: { "Cache-Control": "public, max-age=60" } },
+      { status: 502, cacheControl: "public, max-age=60" },
     );
   }
 }

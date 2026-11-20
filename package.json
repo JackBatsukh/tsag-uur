@@ -14,7 +14,8 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "node --experimental-strip-types --test tests/*.test.ts",
     "perf:lighthouse": "node scripts/performance/run-lighthouse.mjs",
-    "perf:lifecycle": "node scripts/performance/cdp-lifecycle.mjs"
+    "perf:lifecycle": "node scripts/performance/cdp-lifecycle.mjs",
+    "perf:profile": "node scripts/performance/cdp-lifecycle.mjs"
   },
   "dependencies": {
     "maplibre-gl": "^6.15.0",

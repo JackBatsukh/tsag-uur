@@ -148,6 +148,155 @@ async function evaluate(client, expression) {
   return result.result.value;
 }
 
+async function waitForCondition(client, expression, timeoutMs = 12_000) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    if (await evaluate(client, expression)) return;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error(`Timed out waiting for browser condition: ${expression}`);
+}
+
+async function collectMemorySnapshot(client, label) {
+  await client.send("HeapProfiler.collectGarbage");
+  const [dom, performance] = await Promise.all([
+    client.send("Memory.getDOMCounters"),
+    client.send("Performance.getMetrics"),
+  ]);
+  const metrics = Object.fromEntries(
+    performance.metrics.map((item) => [item.name, item.value]),
+  );
+  const runtime = await client.send("Runtime.evaluate", {
+    expression: `(() => {
+      const listeners = typeof getEventListeners === "function"
+        ? [window, document].reduce((total, target) => total + Object.values(getEventListeners(target))
+          .reduce((count, entries) => count + entries.length, 0), 0)
+        : null;
+      const canvases = [...document.querySelectorAll("canvas")];
+      return {
+        connectedElements: document.querySelectorAll("*").length,
+        listeners,
+        mapHosts: document.querySelectorAll(".maplibregl-map").length,
+        mapCanvases: document.querySelectorAll(".maplibregl-canvas").length,
+        canvases: canvases.length,
+        canvasPixels: canvases.reduce((sum, canvas) => sum + canvas.width * canvas.height, 0),
+      };
+    })()`,
+    includeCommandLineAPI: true,
+    returnByValue: true,
+  });
+
+  let detachedNodes = null;
+  let detachedNodeDetails = [];
+  try {
+    const detached = await client.send("DOM.getDetachedDomNodes", {
+      enableDetailedInfo: true,
+    });
+    detachedNodes = detached.detachedNodes?.length ?? 0;
+    detachedNodeDetails = (detached.detachedNodes ?? []).map((item) => ({
+      nodeName: item.treeNode?.nodeName ?? "unknown",
+      childNodeCount: item.treeNode?.childNodeCount ?? 0,
+      attributes: item.treeNode?.attributes ?? [],
+      retainedNodeCount: item.retainedNodeIds?.length ?? 0,
+    }));
+  } catch {
+    // Older Chromium builds may not expose this experimental CDP command.
+  }
+
+  return {
+    label,
+    jsHeapUsedMb: Number(((metrics.JSHeapUsedSize ?? 0) / 1_048_576).toFixed(2)),
+    documents: dom.documents,
+    nodes: dom.nodes,
+    jsEventListeners: dom.jsEventListeners,
+    detachedNodes,
+    detachedNodeDetails,
+    ...runtime.result.value,
+  };
+}
+
+async function runInteractionProfile(client) {
+  const snapshots = [];
+  const researcherModeDisabled = await evaluate(
+    client,
+    `(() => [...document.querySelectorAll(".mode-grid button")]
+      .some((button) => button.disabled && button.textContent.includes("Судлаач")))()`,
+  );
+  if (!researcherModeDisabled) {
+    throw new Error("Researcher mode must remain visibly unavailable.");
+  }
+  await evaluate(
+    client,
+    `(async () => {
+      const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      for (const button of document.querySelectorAll(".layer-option:not(:disabled)")) {
+        button.click();
+        await pause(120);
+      }
+      for (let index = 0; index < 3; index += 1) {
+        document.querySelector(".maplibregl-ctrl-zoom-in")?.click();
+        await pause(100);
+        document.querySelector(".maplibregl-ctrl-zoom-out")?.click();
+        await pause(100);
+      }
+      const liteToggle = document.querySelector(".sidebar-toggles input[type=checkbox]");
+      for (let index = 0; index < 3 && liteToggle; index += 1) {
+        liteToggle.click();
+        await pause(350);
+        liteToggle.click();
+        const startedAt = performance.now();
+        while (!document.querySelector(".maplibregl-canvas") && performance.now() - startedAt < 5_000) {
+          await pause(100);
+        }
+      }
+      return true;
+    })()`,
+  );
+
+  const routes = [
+    [".mode-grid a[href='/herder']", "/herder", ".herder-app"],
+    [".explorer-link[href='/']", "/", ".weather-explorer"],
+    [".mode-grid a[href='/farmer']", "/farmer", ".farmer-app"],
+    [".farmer-brand[href='/']", "/", ".weather-explorer"],
+  ];
+  const navigationCycles = Number(process.env.TSAG_UUR_PERF_NAV_CYCLES ?? 2);
+  for (let cycle = 0; cycle < navigationCycles; cycle += 1) {
+    for (const [selector, pathname, readySelector] of routes) {
+      const clicked = await evaluate(
+        client,
+        `(() => { const target = document.querySelector(${JSON.stringify(selector)}); target?.click(); return Boolean(target); })()`,
+      );
+      if (!clicked) throw new Error(`Could not find navigation target ${selector}.`);
+      await waitForCondition(
+        client,
+        `location.pathname === ${JSON.stringify(pathname)} && Boolean(document.querySelector(${JSON.stringify(readySelector)}))`,
+      );
+      if (pathname === "/herder") {
+        await evaluate(
+          client,
+          `(() => { const buttons = document.querySelectorAll(".herder-bottom-nav button"); buttons[1]?.click(); buttons[0]?.click(); return true; })()`,
+        );
+      }
+      if (pathname === "/farmer") {
+        await evaluate(
+          client,
+          `(() => { document.querySelector("#farmer-map")?.scrollIntoView({ block: "center" }); return true; })()`,
+        );
+        await waitForCondition(
+          client,
+          `Boolean(document.querySelector(".farmer-map-frame .maplibregl-canvas")) && !document.querySelector(".farmer-map-frame .map-state")`,
+        );
+      }
+    }
+    snapshots.push(await collectMemorySnapshot(client, `navigation-cycle-${cycle + 1}`));
+  }
+  await waitForCondition(
+    client,
+    `Boolean(document.querySelector(".maplibregl-canvas")) && !document.querySelector(".map-state")`,
+  );
+  return snapshots;
+}
+
 const server = await startProductionServer();
 const viewportWidth = Number(process.env.TSAG_UUR_PERF_WIDTH ?? 390);
 const viewportHeight = Number(process.env.TSAG_UUR_PERF_HEIGHT ?? 844);
@@ -190,6 +339,8 @@ try {
     client.send("Runtime.enable"),
     client.send("Network.enable"),
     client.send("Performance.enable"),
+    client.send("HeapProfiler.enable"),
+    client.send("DOM.enable"),
     client.send("Log.enable"),
     client.send("Page.setLifecycleEventsEnabled", { enabled: true }),
     client.send("Emulation.setDeviceMetricsOverride", {
@@ -288,6 +439,12 @@ try {
           };
         })()`,
       );
+
+  const memorySnapshots = [await collectMemorySnapshot(client, "settled")];
+  if (process.env.TSAG_UUR_PERF_INTERACTIONS === "1") {
+    memorySnapshots.push(...await runInteractionProfile(client));
+    memorySnapshots.push(await collectMemorySnapshot(client, "after-interactions"));
+  }
 
   const browserMetrics = await evaluate(
     client,
@@ -396,12 +553,18 @@ try {
           averageFps: Number(frameMetrics.averageFps.toFixed(1)),
         }
       : null,
+    memorySnapshots,
     lifecycle: [...new Set(lifecycle)],
     pageErrors,
     browserErrors,
     failedRequests,
     screenshotPath,
   };
+  if (process.env.TSAG_UUR_PERF_JSON) {
+    const jsonPath = path.resolve(process.env.TSAG_UUR_PERF_JSON);
+    await mkdir(path.dirname(jsonPath), { recursive: true });
+    await writeFile(jsonPath, `${JSON.stringify(summary, null, 2)}\n`);
+  }
   console.dir(summary, { depth: null });
 
   const failures = [];
@@ -409,7 +572,10 @@ try {
   if (!process.env.TSAG_UUR_PERF_URL && !summary.serviceWorkerReady) {
     failures.push("service worker did not become ready");
   }
-  if (summary.paint.lcpMs <= 0 || summary.paint.lcpMs > 2_500) failures.push("LCP budget failed");
+  if (
+    process.env.TSAG_UUR_PERF_INTERACTIONS !== "1"
+    && (summary.paint.lcpMs <= 0 || summary.paint.lcpMs > 2_500)
+  ) failures.push("LCP budget failed");
   if (summary.paint.cls > 0.1) failures.push("CLS budget failed");
   if (pageErrors.length) failures.push(`${pageErrors.length} browser exception(s)`);
   if (failedRequests.length) failures.push(`${failedRequests.length} failed request(s)`);
